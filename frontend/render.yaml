@@ -1,0 +1,8 @@
+services:
+  - type: static
+    name: dental-referral-frontend
+    buildCommand: npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://dental-referral-backend.onrender.com
