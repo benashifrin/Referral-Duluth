@@ -26,9 +26,8 @@ services:
         value: your-app-password
 
   # Frontend Static Site
-  - type: web
+  - type: static
     name: dental-referral-frontend
-    env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
     envVars:
