@@ -51,6 +51,24 @@ with app.app_context():
         db.session.commit()
         print(f"Created admin user: {admin_email}")
 
+# Health check endpoint
+@app.route('/health')
+@app.route('/')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Dental Referral API is running',
+        'endpoints': [
+            '/auth/send-otp',
+            '/auth/verify-otp', 
+            '/auth/logout',
+            '/api/user/dashboard',
+            '/api/user/referrals',
+            '/admin/referrals'
+        ]
+    })
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
