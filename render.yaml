@@ -5,7 +5,6 @@ services:
     env: python
     buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && gunicorn app:app
-    plan: free
     envVars:
       - key: FLASK_ENV
         value: production
@@ -17,7 +16,6 @@ services:
           property: connectionString
       - key: ADMIN_EMAIL
         value: admin@dentaloffice.com
-      # Email settings (optional - demo works without these)
       - key: SMTP_SERVER
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -33,7 +31,6 @@ services:
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
-    plan: free
     envVars:
       - key: REACT_APP_API_URL
         value: https://dental-referral-backend.onrender.com
@@ -43,4 +40,3 @@ databases:
   - name: dental-referral-db
     databaseName: dental_referral
     user: dental_user
-    plan: free
