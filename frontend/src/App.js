@@ -17,15 +17,23 @@ function App() {
   // Check if user is already logged in on app start
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('🔍 DEBUG: Starting authentication check...');
       try {
+        console.log('🔍 DEBUG: Calling authAPI.getCurrentUser()...');
         const response = await authAPI.getCurrentUser();
+        console.log('🔍 DEBUG: Auth API response:', response);
         setUser(response.user);
         setAuthenticated(true);
+        console.log('🔍 DEBUG: User authenticated successfully:', response.user);
       } catch (error) {
         // User not authenticated, which is fine
+        console.log('🔍 DEBUG: Authentication failed (expected for new users):', error);
+        console.log('🔍 DEBUG: Error status:', error.response?.status);
+        console.log('🔍 DEBUG: Error data:', error.response?.data);
         setAuthenticated(false);
         setUser(null);
       } finally {
+        console.log('🔍 DEBUG: Setting loading to false...');
         setLoading(false);
       }
     };
@@ -45,6 +53,7 @@ function App() {
 
   // Show loading spinner while checking authentication
   if (loading) {
+    console.log('🔍 DEBUG: Showing loading spinner...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -57,6 +66,8 @@ function App() {
       </div>
     );
   }
+
+  console.log('🔍 DEBUG: App render - authenticated:', authenticated, 'user:', user);
 
   return (
     <Router>
@@ -92,9 +103,9 @@ function App() {
               path="/login" 
               element={
                 authenticated ? (
-                  <Navigate to="/" replace />
+                  console.log('🔍 DEBUG: Redirecting to / (user authenticated)') || <Navigate to="/" replace />
                 ) : (
-                  <LoginPage onLogin={handleLogin} />
+                  console.log('🔍 DEBUG: Rendering LoginPage') || <LoginPage onLogin={handleLogin} />
                 )
               } 
             />
@@ -104,12 +115,12 @@ function App() {
               element={
                 authenticated && user ? (
                   user.is_admin ? (
-                    <AdminDashboard user={user} />
+                    console.log('🔍 DEBUG: Rendering AdminDashboard') || <AdminDashboard user={user} />
                   ) : (
-                    <Dashboard user={user} />
+                    console.log('🔍 DEBUG: Rendering Dashboard') || <Dashboard user={user} />
                   )
                 ) : (
-                  <Navigate to="/login" replace />
+                  console.log('🔍 DEBUG: Redirecting to /login (not authenticated)') || <Navigate to="/login" replace />
                 )
               } 
             />
