@@ -2,30 +2,23 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 
   (process.env.NODE_ENV === 'production' 
-    ? window.location.origin + '/api' 
-    : 'http://localhost:3000/api');
+    ? 'https://your-flask-app.up.railway.app' 
+    : 'http://localhost:5000');
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true, // Important for session cookies
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Token management
-const getToken = () => localStorage.getItem('auth_token');
-const setToken = (token) => localStorage.setItem('auth_token', token);
-const removeToken = () => localStorage.removeItem('auth_token');
-
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Flask uses session cookies, no need for tokens
     return config;
   },
   (error) => {
@@ -41,7 +34,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      removeToken();
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -57,15 +49,12 @@ export const authAPI = {
   
   verifyOTP: async (email, token) => {
     const response = await api.post('/auth/verify-otp', { email, token });
-    if (response.data.token) {
-      setToken(response.data.token);
-    }
     return response.data;
   },
   
   logout: async () => {
-    removeToken();
-    return { message: 'Logged out successfully' };
+    const response = await api.post('/auth/logout');
+    return response.data;
   },
   
   getCurrentUser: async () => {
@@ -136,8 +125,5 @@ export const handleAPIError = (error) => {
     return 'An unexpected error occurred';
   }
 };
-
-// Export token management functions
-export { getToken, setToken, removeToken };
 
 export default api;
