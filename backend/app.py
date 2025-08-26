@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+import re
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
@@ -33,10 +34,19 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
 db.init_app(app)
-CORS(app, supports_credentials=True, origins=[
-    'http://localhost:3000',  # Local development
-    'https://referral-duluth-frontend2.vercel.app'  # Production
-])
+# Custom CORS origin checker for Vercel deployments
+def is_allowed_origin(origin):
+    allowed_patterns = [
+        r'^http://localhost:3000$',  # Local development
+        r'^https://referral-duluth-frontend2.*\.vercel\.app$',  # Any Vercel deployment
+        r'^https://.*-benashifrins-projects\.vercel\.app$'  # User-specific Vercel URLs
+    ]
+    for pattern in allowed_patterns:
+        if re.match(pattern, origin):
+            return True
+    return False
+
+CORS(app, supports_credentials=True, origin_callback=lambda origin, *args: is_allowed_origin(origin))
 
 # Create database tables
 with app.app_context():
