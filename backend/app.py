@@ -27,8 +27,8 @@ load_dotenv()
 # Create Flask app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
-# Use SQLite for now (Render compatible)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# Use DATABASE_URL from environment or fallback to SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
