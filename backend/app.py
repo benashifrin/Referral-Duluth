@@ -35,7 +35,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 CORS(app, supports_credentials=True, origins=[
     'http://localhost:3000',  # Local development
-    'https://dental-referral-frontend.onrender.com'  # Production
+    'https://referral-duluth-frontend2.vercel.app'  # Production
 ])
 
 # Create database tables
