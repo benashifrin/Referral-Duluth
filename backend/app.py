@@ -32,6 +32,11 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Session configuration for cross-domain cookies
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies
+
 # Initialize extensions
 db.init_app(app)
 # Custom CORS origin checker for Vercel deployments
