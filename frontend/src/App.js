@@ -17,12 +17,18 @@ function App() {
   // Check if user is already logged in on app start
   useEffect(() => {
     const checkAuth = async () => {
+      // Skip auth check if already authenticated or on login page
+      if (authenticated || window.location.pathname === '/login') {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await authAPI.getCurrentUser();
         setUser(response.user);
         setAuthenticated(true);
       } catch (error) {
-        // User not authenticated, which is fine for login page
+        // User not authenticated, which is fine
         setAuthenticated(false);
         setUser(null);
       } finally {
@@ -30,11 +36,8 @@ function App() {
       }
     };
 
-    // Only check auth once on initial load
-    if (loading) {
-      checkAuth();
-    }
-  }, [loading]);
+    checkAuth();
+  }, []); // Run only once on mount
 
   const handleLogin = (userData) => {
     setUser(userData);
