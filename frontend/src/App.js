@@ -7,6 +7,8 @@ import LoadingSpinner from './components/LoadingSpinner';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import QuotePage from './pages/QuotePage';
+import DemoPage from './pages/DemoPage';
 import './index.css';
 
 function App() {
@@ -17,8 +19,9 @@ function App() {
   // Check if user is already logged in on app start
   useEffect(() => {
     const checkAuth = async () => {
-      // Skip auth check if already authenticated or on login page
-      if (authenticated || window.location.pathname === '/login') {
+      // Skip auth check if already authenticated or on public pages
+      const publicRoutes = ['/login', '/quote', '/demo'];
+      if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
       }
@@ -129,6 +132,18 @@ function App() {
                   <Navigate to="/" replace />
                 )
               } 
+            />
+
+            {/* Public quote page */}
+            <Route 
+              path="/quote" 
+              element={<QuotePage />} 
+            />
+
+            {/* Public demo page */}
+            <Route 
+              path="/demo" 
+              element={<DemoPage />} 
             />
             
             {/* Catch all route */}
