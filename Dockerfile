@@ -17,5 +17,5 @@ RUN mkdir -p instance
 # Expose port
 EXPOSE 10000
 
-# Run the application
-CMD ["python", "app.py"]
+# Run the application  
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT:-10000}"]
