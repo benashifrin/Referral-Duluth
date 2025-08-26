@@ -22,7 +22,7 @@ function App() {
         setUser(response.user);
         setAuthenticated(true);
       } catch (error) {
-        // User not authenticated, which is fine
+        // User not authenticated, which is fine for login page
         setAuthenticated(false);
         setUser(null);
       } finally {
@@ -30,8 +30,11 @@ function App() {
       }
     };
 
-    checkAuth();
-  }, []);
+    // Only check auth once on initial load
+    if (loading) {
+      checkAuth();
+    }
+  }, [loading]);
 
   const handleLogin = (userData) => {
     setUser(userData);
