@@ -151,4 +151,4 @@ npm run build
 # Backend production server
 cd backend
 gunicorn app:app
-```
+```# Force redeploy Thu Aug 28 16:32:38 MDT 2025
