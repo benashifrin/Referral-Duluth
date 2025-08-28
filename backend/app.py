@@ -86,6 +86,24 @@ def health_check():
         ]
     })
 
+@app.route('/debug/email-config')
+def debug_email_config():
+    """Debug endpoint to check email configuration"""
+    from email_service import email_service
+    return jsonify({
+        'smtp_server': email_service.smtp_server,
+        'smtp_port': email_service.smtp_port,
+        'email_user': email_service.email_user,
+        'password_set': bool(email_service.email_password),
+        'password_length': len(email_service.email_password) if email_service.email_password else 0,
+        'env_vars': {
+            'EMAIL_USER': os.getenv('EMAIL_USER'),
+            'EMAIL_PASSWORD_SET': bool(os.getenv('EMAIL_PASSWORD')),
+            'SMTP_SERVER': os.getenv('SMTP_SERVER'),
+            'SMTP_PORT': os.getenv('SMTP_PORT')
+        }
+    })
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
