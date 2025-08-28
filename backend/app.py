@@ -44,7 +44,9 @@ def is_allowed_origin(origin):
     allowed_patterns = [
         r'^http://localhost:3000$',  # Local development
         r'^https://referral-duluth-frontend2.*\.vercel\.app$',  # Any Vercel deployment
-        r'^https://.*-benashifrins-projects\.vercel\.app$'  # User-specific Vercel URLs
+        r'^https://.*-benashifrins-projects\.vercel\.app$',  # User-specific Vercel URLs
+        r'^https://bestdentistduluth\.com$',  # Production domain
+        r'^https://www\.bestdentistduluth\.com$'  # Production domain with www
     ]
     for pattern in allowed_patterns:
         if re.match(pattern, origin):
@@ -127,13 +129,11 @@ def send_otp():
         if not email:
             return jsonify({'error': 'Email is required'}), 400
         
-        # Validate email format (lenient for demo emails)
-        demo_emails = ['demo@example.com', 'admin@dentaloffice.com', 'user@demo.com']
-        if email not in demo_emails:
-            try:
-                validate_email(email)
-            except EmailNotValidError:
-                return jsonify({'error': 'Invalid email format'}), 400
+        # Validate email format
+        try:
+            validate_email(email)
+        except EmailNotValidError:
+            return jsonify({'error': 'Invalid email format'}), 400
         
         # Clean up expired OTP tokens
         expired_tokens = OTPToken.query.filter(OTPToken.expires_at < datetime.utcnow()).all()
@@ -456,13 +456,11 @@ def signup_referral():
         if not email:
             return jsonify({'error': 'Email is required'}), 400
         
-        # Validate email (lenient for demo emails)
-        demo_emails = ['demo@example.com', 'admin@dentaloffice.com', 'user@demo.com']
-        if email not in demo_emails:
-            try:
-                validate_email(email)
-            except EmailNotValidError:
-                return jsonify({'error': 'Invalid email format'}), 400
+        # Validate email format
+        try:
+            validate_email(email)
+        except EmailNotValidError:
+            return jsonify({'error': 'Invalid email format'}), 400
         
         # Check if there's a referrer in session
         referrer_id = session.get('referrer_id')

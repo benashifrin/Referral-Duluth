@@ -9,9 +9,9 @@ load_dotenv()
 
 class EmailService:
     def __init__(self):
-        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.zoho.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
-        self.email_user = os.getenv('EMAIL_USER')
+        self.email_user = os.getenv('EMAIL_USER', 'noreply@bestdentistduluth.com')
         self.email_password = os.getenv('EMAIL_PASSWORD')
         
     def send_otp_email(self, recipient_email, otp_code):
