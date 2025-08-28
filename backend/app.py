@@ -146,42 +146,32 @@ def test_railway_network():
     
     return jsonify(results)
 
-@app.route('/debug/test-smtp-step-by-step')
-def test_smtp_step_by_step():
-    """Test SMTP connection step by step with detailed logging"""
-    import smtplib
-    import ssl
-    from email_service import email_service
+@app.route('/debug/test-resend')
+def test_resend():
+    """Test Resend email service"""
+    from email_service_resend import email_service
+    import resend
     
     steps = {}
     
     try:
-        # Step 1: Create connection
-        steps['step1_connect'] = {'status': 'attempting', 'action': 'Connecting to SMTP server'}
-        server = smtplib.SMTP(email_service.smtp_server, email_service.smtp_port, timeout=10)
-        steps['step1_connect'] = {'status': 'success', 'message': 'Connected to SMTP server'}
+        # Step 1: Check API key
+        steps['step1_api_key'] = {
+            'status': 'success' if resend.api_key else 'error',
+            'message': 'API key configured' if resend.api_key else 'No API key set'
+        }
         
-        # Step 2: Start TLS
-        steps['step2_tls'] = {'status': 'attempting', 'action': 'Starting TLS'}
-        context = ssl.create_default_context()
-        server.starttls(context=context)
-        steps['step2_tls'] = {'status': 'success', 'message': 'TLS started successfully'}
-        
-        # Step 3: Login
-        steps['step3_login'] = {'status': 'attempting', 'action': 'Logging in'}
-        server.login(email_service.email_user, email_service.email_password)
-        steps['step3_login'] = {'status': 'success', 'message': 'Login successful'}
-        
-        # Step 4: Test EHLO
-        steps['step4_ehlo'] = {'status': 'attempting', 'action': 'Testing EHLO'}
-        response = server.ehlo()
-        steps['step4_ehlo'] = {'status': 'success', 'response': str(response)}
-        
-        server.quit()
+        # Step 2: Test sending email
+        if resend.api_key:
+            steps['step2_send_test'] = {'status': 'attempting', 'action': 'Sending test email'}
+            success = email_service.send_otp_email('test@example.com', '123456')
+            steps['step2_send_test'] = {
+                'status': 'success' if success else 'error',
+                'message': 'Test email sent successfully' if success else 'Failed to send test email'
+            }
         
     except Exception as e:
-        current_step = len([s for s in steps.values() if s.get('status') != 'attempting']) + 1
-        steps[f'error_step_{current_step}'] = {
+        steps['error'] = {
             'status': 'error',
             'error': str(e),
             'error_type': type(e).__name__
@@ -250,7 +240,7 @@ def send_otp():
         
         # Send email (in production, you'd want to do this asynchronously)
         try:
-            print(f"Attempting to send OTP to {email} using {email_service.email_user}")
+            print(f"Attempting to send OTP to {email} using {email_service.from_email}")
             success = email_service.send_otp_email(email, otp_token.token)
             print(f"Email send result: {success}")
             
