@@ -343,10 +343,17 @@ def get_dashboard(user):
         stats = user.get_referral_stats()
         recent_referrals = user.referrals_made.order_by(Referral.created_at.desc()).limit(5).all()
         
+        # Use custom domain for referral links
+        domain = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
+        if not domain.startswith('http'):
+            domain = f"https://{domain}"
+        if not domain.endswith('/'):
+            domain += '/'
+            
         return jsonify({
             'user': user.to_dict(),
             'stats': stats,
-            'referral_link': f"{request.host_url}ref/{user.referral_code}",
+            'referral_link': f"{domain}ref/{user.referral_code}",
             'recent_referrals': [ref.to_dict() for ref in recent_referrals]
         })
         
