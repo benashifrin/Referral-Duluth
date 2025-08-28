@@ -104,6 +104,93 @@ def debug_email_config():
         }
     })
 
+@app.route('/debug/network-test')
+def test_railway_network():
+    """Test Railway network connectivity"""
+    import socket
+    import smtplib
+    results = {}
+    
+    # Test DNS resolution
+    try:
+        ip = socket.gethostbyname('smtp.zoho.com')
+        results['dns_resolution'] = {'success': True, 'ip': ip}
+    except Exception as e:
+        results['dns_resolution'] = {'success': False, 'error': str(e)}
+    
+    # Test port connectivity
+    ports_to_test = [25, 587, 465, 2525]
+    results['port_tests'] = {}
+    
+    for port in ports_to_test:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex(('smtp.zoho.com', port))
+            sock.close()
+            
+            results['port_tests'][str(port)] = {
+                'success': result == 0,
+                'result_code': result,
+                'message': 'Connected' if result == 0 else f'Connection failed: {result}'
+            }
+        except Exception as e:
+            results['port_tests'][str(port)] = {'success': False, 'error': str(e)}
+    
+    # Test SMTP handshake
+    try:
+        server = smtplib.SMTP('smtp.zoho.com', 587, timeout=5)
+        response = server.ehlo()
+        server.quit()
+        results['smtp_handshake'] = {'success': True, 'response': str(response)}
+    except Exception as e:
+        results['smtp_handshake'] = {'success': False, 'error': str(e), 'error_type': type(e).__name__}
+    
+    return jsonify(results)
+
+@app.route('/debug/test-smtp-step-by-step')
+def test_smtp_step_by_step():
+    """Test SMTP connection step by step with detailed logging"""
+    import smtplib
+    import ssl
+    from email_service import email_service
+    
+    steps = {}
+    
+    try:
+        # Step 1: Create connection
+        steps['step1_connect'] = {'status': 'attempting', 'action': 'Connecting to SMTP server'}
+        server = smtplib.SMTP(email_service.smtp_server, email_service.smtp_port, timeout=10)
+        steps['step1_connect'] = {'status': 'success', 'message': 'Connected to SMTP server'}
+        
+        # Step 2: Start TLS
+        steps['step2_tls'] = {'status': 'attempting', 'action': 'Starting TLS'}
+        context = ssl.create_default_context()
+        server.starttls(context=context)
+        steps['step2_tls'] = {'status': 'success', 'message': 'TLS started successfully'}
+        
+        # Step 3: Login
+        steps['step3_login'] = {'status': 'attempting', 'action': 'Logging in'}
+        server.login(email_service.email_user, email_service.email_password)
+        steps['step3_login'] = {'status': 'success', 'message': 'Login successful'}
+        
+        # Step 4: Test EHLO
+        steps['step4_ehlo'] = {'status': 'attempting', 'action': 'Testing EHLO'}
+        response = server.ehlo()
+        steps['step4_ehlo'] = {'status': 'success', 'response': str(response)}
+        
+        server.quit()
+        
+    except Exception as e:
+        current_step = len([s for s in steps.values() if s.get('status') != 'attempting']) + 1
+        steps[f'error_step_{current_step}'] = {
+            'status': 'error',
+            'error': str(e),
+            'error_type': type(e).__name__
+        }
+    
+    return jsonify(steps)
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
