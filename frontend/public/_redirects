@@ -1,1 +1,5 @@
+# Referral link redirects to Railway backend
+/ref/*  https://web-production-80e8.up.railway.app/ref/:splat  302
+
+# SPA fallback for all other routes
 /*    /index.html   200

@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/ref/:code",
+      "destination": "https://web-production-80e8.up.railway.app/ref/:code",
+      "statusCode": 302
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
