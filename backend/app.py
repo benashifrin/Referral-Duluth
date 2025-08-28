@@ -146,16 +146,22 @@ def send_otp():
         db.session.commit()
         
         # Send email (in production, you'd want to do this asynchronously)
-        success = email_service.send_otp_email(email, otp_token.token)
-        
-        if success:
-            return jsonify({
-                'message': 'OTP sent to your email',
-                'email': email,
-                'expires_in': 600  # 10 minutes in seconds
-            })
-        else:
-            return jsonify({'error': 'Failed to send OTP. Please try again.'}), 500
+        try:
+            print(f"Attempting to send OTP to {email} using {email_service.email_user}")
+            success = email_service.send_otp_email(email, otp_token.token)
+            print(f"Email send result: {success}")
+            
+            if success:
+                return jsonify({
+                    'message': 'OTP sent to your email',
+                    'email': email,
+                    'expires_in': 600  # 10 minutes in seconds
+                })
+            else:
+                return jsonify({'error': 'Failed to send OTP. Please try again.'}), 500
+        except Exception as e:
+            print(f"Error in send_otp endpoint: {str(e)}")
+            return jsonify({'error': f'Email service error: {str(e)}'}), 500
             
     except Exception as e:
         db.session.rollback()
