@@ -68,6 +68,15 @@ logger.info(f"Session cookie httponly: {app.config.get('SESSION_COOKIE_HTTPONLY'
 logger.info(f"Session cookie max age: {app.config.get('SESSION_COOKIE_MAX_AGE')}")
 logger.info(f"Session cookie samesite: {app.config.get('SESSION_COOKIE_SAMESITE')}")
 logger.info(f"Session cookie domain: {app.config.get('SESSION_COOKIE_DOMAIN')}")
+
+# Staff list for signup attribution
+STAFF_MEMBERS = [
+    "Amanda",
+    "Taquila",
+    "Monti",
+    "Sanita",
+    "Ben",
+]
 # CORS configuration
 # Define allowed origins (can be overridden via ALLOWED_ORIGINS env, comma-separated)
 default_allowed_origins = [
@@ -1022,6 +1031,18 @@ def track_referral_click(referral_code):
                         <label for="email">Email Address *</label>
                         <input type="email" id="email" placeholder="your.email@example.com" required>
                     </div>
+
+                    <div class="form-group">
+                        <label for="staff">Team Member Who Helped You *</label>
+                        <select id="staff" required>
+                            <option value="" disabled selected>Select team member</option>
+                            <option value="Amanda">Amanda</option>
+                            <option value="Taquila">Taquila</option>
+                            <option value="Monti">Monti</option>
+                            <option value="Sanita">Sanita</option>
+                            <option value="Ben">Ben</option>
+                        </select>
+                    </div>
                     
                     <button type="submit">Complete Step 1 - Submit Information</button>
                 </form>
@@ -1037,6 +1058,7 @@ def track_referral_click(referral_code):
                     const name = document.getElementById('name').value;
                     const phone = document.getElementById('phone').value;
                     const email = document.getElementById('email').value;
+                    const staff = document.getElementById('staff').value;
                     
                     const submitButton = event.target.querySelector('button[type="submit"]');
                     const originalText = submitButton.textContent;
@@ -1050,7 +1072,8 @@ def track_referral_click(referral_code):
                             body: JSON.stringify({{ 
                                 name: name,
                                 phone: phone,
-                                email: email 
+                                email: email,
+                                staff: staff
                             }})
                         }});
                         
@@ -1105,6 +1128,7 @@ def signup_referral():
         name = data.get('name', '').strip()
         phone = data.get('phone', '').strip()
         email = data.get('email', '').strip().lower()
+        staff = (data.get('staff') or '').strip()
         
         # Validate required fields
         if not name:
@@ -1113,7 +1137,12 @@ def signup_referral():
             return jsonify({'error': 'Phone number is required'}), 400
         if not email:
             return jsonify({'error': 'Email is required'}), 400
-        
+        # Validate staff member selection
+        if not staff:
+            return jsonify({'error': 'Please select the team member who helped you'}), 400
+        if staff not in STAFF_MEMBERS:
+            return jsonify({'error': 'Invalid staff member selected'}), 400
+
         # Validate email format
         try:
             validate_email(email)
@@ -1143,6 +1172,7 @@ def signup_referral():
         referral.referred_name = name
         referral.referred_phone = phone
         referral.status = 'signed_up'
+        referral.signed_up_by_staff = staff
         db.session.add(referral)
         db.session.commit()
         
@@ -1398,8 +1428,8 @@ def export_referrals(user):
         
         # Write header
         writer.writerow([
-            'ID', 'Referrer Email', 'Referrer Code', 'Referred Email', 
-            'Status', 'Earnings', 'Created At', 'Completed At'
+            'ID', 'Referrer Email', 'Referrer Code', 'Referred Email',
+            'Signed Up By Staff', 'Status', 'Earnings', 'Created At', 'Completed At'
         ])
         
         # Write data
@@ -1409,6 +1439,7 @@ def export_referrals(user):
                 referral.referrer.email,
                 referral.referrer.referral_code,
                 referral.referred_email,
+                referral.signed_up_by_staff or '',
                 referral.status,
                 referral.earnings,
                 referral.created_at.isoformat(),

@@ -2,7 +2,7 @@ import React from 'react';
 import { formatDate, formatCurrency, getStatusColor, getStatusText } from '../utils/auth';
 import { Mail, Calendar, DollarSign } from 'lucide-react';
 
-const ReferralTable = ({ referrals, showReferrer = false }) => {
+const ReferralTable = ({ referrals, showReferrer = false, showStaff = true }) => {
   if (!referrals || referrals.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -28,6 +28,11 @@ const ReferralTable = ({ referrals, showReferrer = false }) => {
               {showReferrer && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Referrer
+                </th>
+              )}
+              {showStaff && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Staff
                 </th>
               )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -63,7 +68,13 @@ const ReferralTable = ({ referrals, showReferrer = false }) => {
                     </div>
                   </td>
                 )}
-                
+                {showStaff && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {referral.signed_up_by_staff || '—'}
+                    </div>
+                  </td>
+                )}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(referral.status)}`}>
                     {getStatusText(referral.status)}
@@ -121,6 +132,12 @@ const ReferralTable = ({ referrals, showReferrer = false }) => {
                 <div className="text-xs text-gray-500 mb-1">Referrer</div>
                 <div className="text-sm text-gray-900">{referral.referrer?.email || 'N/A'}</div>
                 <div className="text-xs text-gray-500">Code: {referral.referrer?.referral_code || 'N/A'}</div>
+              </div>
+            )}
+            {showStaff && (
+              <div className="mb-3 p-2 bg-gray-50 rounded">
+                <div className="text-xs text-gray-500 mb-1">Staff</div>
+                <div className="text-sm text-gray-900">{referral.signed_up_by_staff || '—'}</div>
               </div>
             )}
             
