@@ -648,8 +648,15 @@ def verify_otp():
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
         
-        logger.info(f"[{request_id}] OTP VERIFY - Email: {email}, Token: {token}, Mobile: {is_mobile}")
-        logger.info(f"[{request_id}] OTP VERIFY - Current session keys: {list(session.keys())}")
+        logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Token: {token}, Mobile: {is_mobile}")
+        logger.info(f"[{request_id}] OTP VERIFY START - Current session keys: {list(session.keys())}")
+        logger.info(f"[{request_id}] OTP VERIFY START - Request method: {request.method}")
+        logger.info(f"[{request_id}] OTP VERIFY START - Content type: {request.content_type}")
+        
+        if is_mobile:
+            logger.info(f"[{request_id}] MOBILE OTP VERIFY - Processing mobile OTP request")
+            logger.info(f"[{request_id}] MOBILE OTP VERIFY - Request data: {data}")
+            logger.info(f"[{request_id}] MOBILE OTP VERIFY - Request headers: {dict(request.headers)}")
         
         if not email or not token:
             logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing email or token")
@@ -690,6 +697,12 @@ def verify_otp():
             db.session.commit()
         else:
             logger.info(f"[{request_id}] USER FOUND - Existing user {email} (ID: {user.id})")
+        
+        # CRITICAL MOBILE DEBUG - Track if mobile reaches session setup
+        if is_mobile:
+            logger.info(f"[{request_id}] MOBILE CRITICAL - About to set session for mobile browser")
+            logger.info(f"[{request_id}] MOBILE CRITICAL - Session before setup: {list(session.keys())}")
+            logger.info(f"[{request_id}] MOBILE CRITICAL - User object ready: {user.id} - {user.email}")
         
         # Set session with mobile browser compatibility
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
@@ -735,11 +748,18 @@ def verify_otp():
         response = make_response(jsonify(response_data))
         
         # Manually force session save and cookie setting
+        if is_mobile:
+            logger.info(f"[{request_id}] MOBILE CRITICAL - About to manually save session")
+            
         try:
             app.session_interface.save_session(app, session, response)
             logger.info(f"[{request_id}] MANUAL SESSION SAVE - Forced session save to response")
+            if is_mobile:
+                logger.info(f"[{request_id}] MOBILE CRITICAL - Session save completed successfully")
         except Exception as save_error:
             logger.error(f"[{request_id}] MANUAL SESSION SAVE - Failed: {str(save_error)}")
+            if is_mobile:
+                logger.error(f"[{request_id}] MOBILE CRITICAL - Session save failed: {str(save_error)}")
             
             # Fallback: manually set session cookie
             try:
