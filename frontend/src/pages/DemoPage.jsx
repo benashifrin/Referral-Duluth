@@ -271,8 +271,8 @@ const DemoPage = () => {
           <div className="qr-container">
             <div className="qr-glow"></div>
             <img 
-              src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://duluthdentalcenter.com&color=2c3e50&bgcolor=ffffff" 
-              alt="QR Code for Duluth Dental Center"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fwww.bestdentistduluth.com%2Flogin&color=2c3e50&bgcolor=ffffff" 
+              alt="QR Code for BestDentistDuluth.com Login"
               className="qr-code" 
             />
           </div>
