@@ -143,6 +143,10 @@ export const adminAPI = {
     const response = await api.put(`/admin/referral/${referralId}/complete`);
     return response.data;
   },
+  deleteReferral: async (referralId) => {
+    const response = await api.delete(`/admin/referral/${referralId}`);
+    return response.data;
+  },
   
   getStats: async () => {
     const response = await api.get('/admin/stats');

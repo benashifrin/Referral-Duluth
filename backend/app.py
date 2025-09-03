@@ -1361,6 +1361,31 @@ def complete_referral(user, referral_id):
         print(f"Error completing referral: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/admin/referral/<int:referral_id>', methods=['DELETE'])
+@require_admin()
+def delete_referral(user, referral_id):
+    """Delete a referral. If completed with earnings, reverse payout from user's total_earnings."""
+    try:
+        referral = Referral.query.get_or_404(referral_id)
+        referrer = referral.referrer
+
+        # Reverse earnings if needed
+        if referral.status == 'completed' and referral.earnings and referral.earnings > 0:
+            referrer.total_earnings = max(0.0, (referrer.total_earnings or 0.0) - referral.earnings)
+
+        db.session.delete(referral)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Referral deleted',
+            'referrer': referrer.to_dict(),
+            'referrer_stats': referrer.get_referral_stats()
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting referral: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/admin/export', methods=['GET'])
 @require_admin()
 def export_referrals(user):

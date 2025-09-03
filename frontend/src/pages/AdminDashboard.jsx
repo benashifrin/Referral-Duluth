@@ -7,7 +7,8 @@ import {
   Download,
   CheckCircle,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Trash
 } from 'lucide-react';
 import { adminAPI, handleAPIError } from '../services/api';
 import { formatCurrency, formatDateTime, getStatusColor, getStatusText } from '../utils/auth';
@@ -72,6 +73,18 @@ const AdminDashboard = ({ user }) => {
       toast.error(handleAPIError(error));
     } finally {
       setCompletingReferralId(null);
+    }
+  };
+
+  const handleDeleteReferral = async (referral) => {
+    const label = `${referral.referrer?.email || 'referrer'} → ${referral.referred_email}`;
+    if (!window.confirm(`Delete this referral?\n${label}\nIf completed, earnings will be reversed.`)) return;
+    try {
+      await adminAPI.deleteReferral(referral.id);
+      await Promise.all([loadStats(), loadReferrals(currentPage, statusFilter)]);
+      toast.success('Referral deleted');
+    } catch (error) {
+      toast.error(handleAPIError(error));
     }
   };
 
@@ -308,7 +321,7 @@ const AdminDashboard = ({ user }) => {
                       )}
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       {referral.status === 'signed_up' && (
                         <button
                           onClick={() => handleCompleteReferral(referral.id)}
@@ -334,11 +347,21 @@ const AdminDashboard = ({ user }) => {
                         </span>
                       )}
                       {referral.status === 'pending' && (
-                        <span className="text-yellow-600 text-xs font-medium flex items-center">
+                        <span className="text-yellow-600 text-xs font-medium inline-flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
                           Waiting
                         </span>
                       )}
+
+                      {/* Delete action */}
+                      <button
+                        onClick={() => handleDeleteReferral(referral)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        title="Delete referral"
+                      >
+                        <Trash className="h-3 w-3 mr-1" />
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
