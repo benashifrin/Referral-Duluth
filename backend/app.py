@@ -1168,6 +1168,131 @@ def signup_referral():
         return jsonify({'error': 'Internal server error'}), 500
 
 # Admin Routes
+
+@app.route('/admin/users', methods=['GET'])
+@require_admin()
+def admin_list_users(user):
+    """List users with referral stats (paginated)"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        q = request.args.get('q', '', type=str).strip().lower()
+
+        query = User.query
+        if q:
+            query = query.filter(User.email.ilike(f"%{q}%"))
+
+        pagination = query.order_by(User.created_at.desc()).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+
+        users = []
+        for u in pagination.items:
+            users.append({
+                'id': u.id,
+                'email': u.email,
+                'referral_code': u.referral_code,
+                'is_admin': u.is_admin,
+                'stats': u.get_referral_stats(),
+                'total_earnings': u.total_earnings,
+                'created_at': u.created_at.isoformat(),
+            })
+
+        return jsonify({
+            'users': users,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        })
+    except Exception as e:
+        print(f"Error listing users: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/user/<int:user_id>/referrals', methods=['PUT'])
+@require_admin()
+def admin_adjust_user_referrals(user, user_id):
+    """Adjust a user's referral counts by creating or downgrading referral records.
+    Payload can include:
+      - completed (int): desired total completed referrals (all-time)
+      - signed_up (int): desired total signed-up referrals (all-time) [optional]
+    """
+    try:
+        target_user = User.query.get_or_404(user_id)
+        data = request.get_json() or {}
+        desired_completed = data.get('completed')
+        desired_signed_up = data.get('signed_up')
+
+        changes = {'notes': []}
+
+        # Adjust completed referrals if specified
+        if isinstance(desired_completed, int) and desired_completed >= 0:
+            current_completed = target_user.referrals_made.filter_by(status='completed').count()
+            if desired_completed > current_completed:
+                to_add = desired_completed - current_completed
+                for _ in range(to_add):
+                    r = Referral(referrer_id=target_user.id, referred_email=f"manual+{uuid.uuid4().hex[:8]}@example.com")
+                    r.status = 'completed'
+                    r.completed_at = datetime.utcnow()
+                    if target_user.can_earn_more():
+                        r.earnings = 50.0
+                        target_user.total_earnings += 50.0
+                    else:
+                        r.earnings = 0.0
+                        changes['notes'].append('Annual cap reached; completed without earnings')
+                    db.session.add(r)
+                changes['completed'] = {'from': current_completed, 'to': desired_completed}
+            elif desired_completed < current_completed:
+                to_remove = current_completed - desired_completed
+                refs = target_user.referrals_made.filter_by(status='completed').order_by(Referral.completed_at.desc()).limit(to_remove).all()
+                removed = 0
+                for r in refs:
+                    if removed >= to_remove:
+                        break
+                    if r.earnings and r.earnings > 0:
+                        target_user.total_earnings = max(0.0, (target_user.total_earnings or 0.0) - r.earnings)
+                    r.status = 'signed_up'
+                    r.earnings = 0.0
+                    r.completed_at = None
+                    removed += 1
+                changes['completed'] = {'from': current_completed, 'to': desired_completed}
+
+        # Adjust signed_up referrals if specified
+        if isinstance(desired_signed_up, int) and desired_signed_up >= 0:
+            current_signed = target_user.referrals_made.filter_by(status='signed_up').count()
+            if desired_signed_up > current_signed:
+                to_add = desired_signed_up - current_signed
+                for _ in range(to_add):
+                    r = Referral(referrer_id=target_user.id, referred_email=f"manual+{uuid.uuid4().hex[:8]}@example.com")
+                    r.status = 'signed_up'
+                    db.session.add(r)
+                changes['signed_up'] = {'from': current_signed, 'to': desired_signed_up}
+            elif desired_signed_up < current_signed:
+                to_remove = current_signed - desired_signed_up
+                refs = target_user.referrals_made.filter_by(status='signed_up').order_by(Referral.created_at.desc()).limit(to_remove).all()
+                removed = 0
+                for r in refs:
+                    if removed >= to_remove:
+                        break
+                    db.session.delete(r)
+                    removed += 1
+                changes['signed_up'] = {'from': current_signed, 'to': desired_signed_up}
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'User referrals updated',
+            'user': target_user.to_dict(),
+            'stats': target_user.get_referral_stats(),
+            'changes': changes
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error adjusting user referrals: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 @app.route('/admin/referrals', methods=['GET'])
 @require_admin()
 def get_all_referrals(user):

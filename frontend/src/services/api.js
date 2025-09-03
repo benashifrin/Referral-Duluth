@@ -117,6 +117,20 @@ export const referralAPI = {
 
 // Admin API
 export const adminAPI = {
+  getUsers: async (page = 1, perPage = 20, q = '') => {
+    const params = new URLSearchParams({ page, per_page: perPage });
+    if (q) params.append('q', q);
+    const response = await api.get(`/admin/users?${params}`);
+    return response.data;
+  },
+
+  updateUserReferrals: async (userId, { completed, signed_up } = {}) => {
+    const payload = {};
+    if (typeof completed === 'number') payload.completed = completed;
+    if (typeof signed_up === 'number') payload.signed_up = signed_up;
+    const response = await api.put(`/admin/user/${userId}/referrals`, payload);
+    return response.data;
+  },
   getAllReferrals: async (page = 1, perPage = 20, status = '') => {
     const params = new URLSearchParams({ page, per_page: perPage });
     if (status) params.append('status', status);

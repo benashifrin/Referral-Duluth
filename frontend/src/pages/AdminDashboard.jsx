@@ -25,6 +25,10 @@ const AdminDashboard = ({ user }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [completingReferralId, setCompletingReferralId] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersPages, setUsersPages] = useState(1);
+  const [usersLoading, setUsersLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   const loadStats = async () => {
@@ -49,7 +53,7 @@ const AdminDashboard = ({ user }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadStats(), loadReferrals(currentPage, statusFilter)]);
+    await Promise.all([loadStats(), loadReferrals(currentPage, statusFilter), loadUsers(usersPage)]);
     setRefreshing(false);
     toast.success('Dashboard refreshed');
   };
@@ -104,11 +108,37 @@ const AdminDashboard = ({ user }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([loadStats(), loadReferrals()]);
+      await Promise.all([loadStats(), loadReferrals(), loadUsers()]);
       setLoading(false);
     };
     loadData();
   }, []);
+
+  const loadUsers = async (page = 1) => {
+    try {
+      setUsersLoading(true);
+      const data = await adminAPI.getUsers(page, 20);
+      setUsers(data.users);
+      setUsersPage(data.current_page);
+      setUsersPages(data.pages);
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleUserCompletedAdjust = async (u, nextCompleted) => {
+    if (nextCompleted < 0) return;
+    try {
+      const res = await adminAPI.updateUserReferrals(u.id, { completed: nextCompleted });
+      // Update local state with latest stats
+      setUsers(prev => prev.map(item => item.id === u.id ? { ...item, stats: res.stats, total_earnings: res.user.total_earnings } : item));
+      toast.success('Updated completed referrals');
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    }
+  };
 
   if (loading) {
     return (
@@ -373,6 +403,78 @@ const AdminDashboard = ({ user }) => {
                   </nav>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Users Referral Controls */}
+        <div className="card mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Users – Adjust Referral Counts</h2>
+            <button onClick={() => loadUsers(usersPage)} className="btn-secondary">
+              {usersLoading ? 'Loading...' : 'Reload Users'}
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Earnings</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.map(u => (
+                  <tr key={u.id}>
+                    <td className="px-6 py-4 text-sm text-gray-900">{u.email}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{u.referral_code}</td>
+                    <td className="px-6 py-4">
+                      <div className="inline-flex items-center space-x-2">
+                        <button onClick={() => handleUserCompletedAdjust(u, u.stats.completed_referrals - 1)} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">-</button>
+                        <input
+                          type="number"
+                          className="w-20 input-field"
+                          value={u.stats.completed_referrals}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value || '0', 10);
+                            setUsers(prev => prev.map(item => item.id === u.id ? { ...item, stats: { ...item.stats, completed_referrals: isNaN(val) ? 0 : val } } : item));
+                          }}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value || '0', 10);
+                            handleUserCompletedAdjust(u, isNaN(val) ? 0 : val);
+                          }}
+                          min={0}
+                        />
+                        <button onClick={() => handleUserCompletedAdjust(u, u.stats.completed_referrals + 1)} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">+</button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{u.stats.total_referrals}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{formatCurrency(u.total_earnings)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {usersPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+              <button
+                onClick={() => loadUsers(Math.max(1, usersPage - 1))}
+                className="btn-secondary"
+                disabled={usersPage <= 1}
+              >
+                Previous
+              </button>
+              <div className="text-sm text-gray-700">Page {usersPage} of {usersPages}</div>
+              <button
+                onClick={() => loadUsers(Math.min(usersPages, usersPage + 1))}
+                className="btn-secondary"
+                disabled={usersPage >= usersPages}
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
