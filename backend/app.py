@@ -1072,7 +1072,7 @@ def track_referral_click(referral_code):
                                     
                                     <div style="background: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; color: #374151;">
                                         <p style="margin: 0; font-size: 14px;"><strong>Office Hours:</strong></p>
-                                        <p style="margin: 5px 0; font-size: 14px;">Monday - Friday: 8:00 AM - 5:00 PM</p>
+                                        <p style="margin: 5px 0; font-size: 14px;">Monday - Thursday: 8:00 AM - 4:00 PM</p>
                                         <p style="margin: 5px 0; font-size: 14px;">We're ready to schedule your appointment!</p>
                                     </div>
                                 </div>
