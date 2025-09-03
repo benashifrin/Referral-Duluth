@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Send, Key, ArrowRight } from 'lucide-react';
-import { authAPI, handleAPIError } from '../services/api';
+import { authAPI, handleAPIError, API_URL } from '../services/api';
 import { isValidEmail } from '../utils/auth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -73,7 +73,7 @@ const LoginPage = ({ onLogin }) => {
       // Report success to server for mobile tracking
       if (isMobile) {
         try {
-          await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+          await fetch(`${API_URL}/debug/mobile-error`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',
@@ -110,7 +110,7 @@ const LoginPage = ({ onLogin }) => {
           
           // Report session verification failure to server
           try {
-            await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+            await fetch(`${API_URL}/debug/mobile-error`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               credentials: 'include',
@@ -151,7 +151,7 @@ const LoginPage = ({ onLogin }) => {
       // Report OTP verification failure to server
       if (isMobile) {
         try {
-          await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+          await fetch(`${API_URL}/debug/mobile-error`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',

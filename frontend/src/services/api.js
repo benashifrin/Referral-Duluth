@@ -1,12 +1,13 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://web-production-80e8.up.railway.app' 
+// Single source of truth for API URL
+export const API_URL = process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://api.bestdentistduluth.com'
     : 'http://localhost:5000');
 
 // Debug API URL for mobile troubleshooting
-console.log('[API Debug] API_BASE_URL:', API_BASE_URL);
+console.log('[API Debug] API_URL:', API_URL);
 console.log('[API Debug] NODE_ENV:', process.env.NODE_ENV);
 console.log('[API Debug] REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
@@ -17,7 +18,7 @@ const isMobile = () => {
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
   withCredentials: true, // Important for session cookies
   timeout: isMobile() ? 15000 : 10000, // Longer timeout for mobile networks
   headers: {
@@ -166,10 +167,11 @@ export const checkNetworkConnectivity = async () => {
   }
   
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await fetch(`${API_URL}/health`, {
       method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-cache'
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include'  // Important for cookies
     });
     return true;
   } catch (error) {

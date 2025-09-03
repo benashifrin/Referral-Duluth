@@ -50,6 +50,10 @@ app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Critical for mobile cross-origin
+# Optional: allow overriding cookie domain when served on a subdomain like api.bestdentistduluth.com
+cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN')
+if cookie_domain:
+    app.config['SESSION_COOKIE_DOMAIN'] = cookie_domain
 # Remove SESSION_TYPE, SESSION_USE_SIGNER, and other complex settings
 # Let Flask use its default session interface
 
@@ -63,26 +67,41 @@ logger.info(f"Session cookie secure: {app.config.get('SESSION_COOKIE_SECURE')}")
 logger.info(f"Session cookie httponly: {app.config.get('SESSION_COOKIE_HTTPONLY')}")
 logger.info(f"Session cookie max age: {app.config.get('SESSION_COOKIE_MAX_AGE')}")
 logger.info(f"Session cookie samesite: {app.config.get('SESSION_COOKIE_SAMESITE')}")
-# Custom CORS origin checker for Vercel deployments
-def is_allowed_origin(origin):
-    allowed_patterns = [
-        r'^http://localhost:3000$',  # Local development
-        r'^https://referral-duluth-frontend2.*\.vercel\.app$',  # Any Vercel deployment
-        r'^https://.*-benashifrins-projects\.vercel\.app$',  # User-specific Vercel URLs
-        r'^https://bestdentistduluth\.com$',  # Production domain
-        r'^https://www\.bestdentistduluth\.com$'  # Production domain with www
+logger.info(f"Session cookie domain: {app.config.get('SESSION_COOKIE_DOMAIN')}")
+# CORS configuration
+# Define allowed origins (can be overridden via ALLOWED_ORIGINS env, comma-separated)
+default_allowed_origins = [
+    'http://localhost:3000',
+    'https://bestdentistduluth.com',
+    'https://www.bestdentistduluth.com',
+]
+extra_allowed = [o.strip() for o in os.getenv('ALLOWED_ORIGINS', '').split(',') if o.strip()]
+ALLOWED_ORIGINS = default_allowed_origins + extra_allowed
+
+def is_allowed_origin(origin: str) -> bool:
+    if not origin:
+        return False
+    # Direct match first
+    if origin in ALLOWED_ORIGINS:
+        return True
+    # Allow some common Vercel preview patterns
+    vercel_patterns = [
+        r'^https://referral-duluth-frontend2.*\.vercel\.app$',
+        r'^https://.*-benashifrins-projects\.vercel\.app$',
     ]
-    for pattern in allowed_patterns:
+    for pattern in vercel_patterns:
         if re.match(pattern, origin):
             return True
     return False
 
-CORS(app, 
-     supports_credentials=True, 
-     origin_callback=lambda origin, *args: is_allowed_origin(origin),
-     allow_headers=['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
-     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-     expose_headers=['Set-Cookie'])
+# Configure Flask-CORS (explicit origins; credentials enabled)
+CORS(
+    app,
+    supports_credentials=True,
+    origins=ALLOWED_ORIGINS,
+    allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+)
 
 # Request tracking and mobile detection middleware
 @app.before_request
@@ -110,7 +129,16 @@ def after_request(response):
     """Log response details with detailed cookie information"""
     request_id = getattr(request, 'id', 'unknown')
     is_mobile = getattr(request, 'is_mobile', False)
-    
+    # Robust CORS headers for credentialed requests
+    origin = request.headers.get('Origin')
+    if origin and is_allowed_origin(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        # Ensure caches/CDNs vary by Origin
+        response.headers.add('Vary', 'Origin')
+
     logger.info(f"[{request_id}] RESPONSE - Status: {response.status_code}")
     
     # Log session changes for auth requests with detailed cookie info
@@ -768,12 +796,19 @@ def verify_otp():
                 from itsdangerous import URLSafeTimedSerializer
                 serializer = URLSafeTimedSerializer(app.secret_key)
                 cookie_val = serializer.dumps(dict(session))
-                response.set_cookie('session', cookie_val, 
-                                  max_age=86400, secure=True, httponly=True)
+                response.set_cookie(
+                    'session',
+                    cookie_val,
+                    max_age=86400,
+                    secure=True,
+                    httponly=True,
+                    samesite='None',
+                    domain=app.config.get('SESSION_COOKIE_DOMAIN')
+                )
                 logger.info(f"[{request_id}] FALLBACK SESSION COOKIE - Manually set session cookie")
             except Exception as fallback_error:
                 logger.error(f"[{request_id}] FALLBACK SESSION COOKIE - Failed: {str(fallback_error)}")
-        
+
         return response
         
     except Exception as e:

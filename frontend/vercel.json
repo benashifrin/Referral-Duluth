@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/ref/:code",
-      "destination": "https://web-production-80e8.up.railway.app/ref/:code",
+      "destination": "https://api.bestdentistduluth.com/ref/:code",
       "statusCode": 302
     }
   ],
