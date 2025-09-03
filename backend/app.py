@@ -44,20 +44,23 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Session configuration optimized for mobile browsers
+# Simplified session configuration for maximum compatibility
+# Remove complex session settings that prevent Set-Cookie headers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
-# Remove SameSite restriction entirely for maximum mobile compatibility
-# app.config['SESSION_COOKIE_SAMESITE'] = None  # Let Flask handle default
-app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't specify domain for mobile compatibility
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
-app.config['SESSION_COOKIE_PATH'] = '/'  # Available on all paths
-app.config['SESSION_TYPE'] = 'filesystem'  # Use file-based sessions for reliability
-app.config['SESSION_PERMANENT'] = True  # Make sessions permanent by default
-app.config['SESSION_USE_SIGNER'] = True  # Sign session cookies for security
+# Remove SESSION_TYPE, SESSION_USE_SIGNER, and other complex settings
+# Let Flask use its default session interface
 
 # Initialize extensions
 db.init_app(app)
+
+# Log session interface being used
+logger.info(f"Flask session interface: {type(app.session_interface).__name__}")
+logger.info(f"Flask session interface module: {app.session_interface.__class__.__module__}")
+logger.info(f"Session cookie secure: {app.config.get('SESSION_COOKIE_SECURE')}")
+logger.info(f"Session cookie httponly: {app.config.get('SESSION_COOKIE_HTTPONLY')}")
+logger.info(f"Session cookie max age: {app.config.get('SESSION_COOKIE_MAX_AGE')}")
 # Custom CORS origin checker for Vercel deployments
 def is_allowed_origin(origin):
     allowed_patterns = [
@@ -591,10 +594,18 @@ def verify_otp():
         
         # Set session with mobile browser compatibility
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
+        logger.info(f"[{request_id}] SESSION SET - Session interface type: {type(app.session_interface).__name__}")
+        
         session['user_id'] = user.id
         session['user_email'] = user.email
         session.permanent = True
+        
+        # Force session to be marked as modified
+        session.modified = True
+        
         logger.info(f"[{request_id}] SESSION SET - After: {list(session.keys())}, Mobile: {is_mobile}")
+        logger.info(f"[{request_id}] SESSION SET - Session modified: {getattr(session, 'modified', 'unknown')}")
+        logger.info(f"[{request_id}] SESSION SET - Session permanent: {session.permanent}")
         
         # Force session save for mobile browsers
         db.session.commit()  # Ensure user is saved before session
