@@ -73,6 +73,7 @@ const LoginPage = ({ onLogin }) => {
       console.log(`[Mobile Debug] Is mobile: ${isMobile}`);
       console.log(`[Mobile Debug] User agent: ${navigator.userAgent}`);
       
+      console.log('[Login] Submitting OTP verify payload:', { email, token: otp, staff });
       const result = await authAPI.verifyOTP(email, otp, staff);
       console.log(`[Mobile Debug] OTP verification successful:`, result);
       

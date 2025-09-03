@@ -708,10 +708,25 @@ def verify_otp():
     is_mobile = getattr(request, 'is_mobile', False)
     
     try:
-        data = request.get_json()
+        # Log raw headers and body for debugging
+        try:
+            raw_body = request.get_data(cache=False, as_text=True)[:1000]
+        except Exception:
+            raw_body = '<unavailable>'
+        logger.info(f"[{request_id}] OTP VERIFY HEADERS: {dict(request.headers)}")
+        logger.info(f"[{request_id}] OTP VERIFY RAW BODY (truncated): {raw_body}")
+
+        data = request.get_json(silent=True) or {}
+        logger.info(f"[{request_id}] OTP VERIFY - Parsed JSON keys: {list(data.keys())}")
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
         # Accept multiple possible keys and normalize
+        staff_raw_values = {
+            'staff': data.get('staff'),
+            'teamMember': data.get('teamMember'),
+            'team_member': data.get('team_member'),
+            'team_member_name': data.get('team_member_name'),
+        }
         staff = (
             data.get('staff')
             or data.get('teamMember')
@@ -720,6 +735,8 @@ def verify_otp():
             or ''
         )
         staff = canonicalize_staff(staff)
+        logger.info(f"[{request_id}] OTP VERIFY - Staff raw values: {staff_raw_values}")
+        logger.info(f"[{request_id}] OTP VERIFY - Staff normalized: '{staff}' (allowed: {STAFF_MEMBERS})")
         
         logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Token: {token}, Mobile: {is_mobile}")
         logger.info(f"[{request_id}] OTP VERIFY START - Current session keys: {list(session.keys())}")
@@ -736,7 +753,7 @@ def verify_otp():
             return jsonify({'error': 'Email and token are required'}), 400
         # Require staff selection on login
         if not staff:
-            logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing or invalid staff selection")
+            logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing or invalid staff selection. Raw: {staff_raw_values}")
             return jsonify({'error': 'Please select the team member who helped you'}), 400
         
         # Demo mode: Accept specific demo credentials
@@ -1139,11 +1156,23 @@ def track_referral_click(referral_code):
 def signup_referral():
     """Process referral signup"""
     try:
-        data = request.get_json()
+        request_id = getattr(request, 'id', 'unknown')
+        # Debug raw body and headers to diagnose staff attribution issues
+        try:
+            raw_body = request.get_data(cache=False, as_text=True)[:1000]
+        except Exception:
+            raw_body = '<unavailable>'
+        logger.info(f"[{request_id}] SIGNUP HEADERS: {dict(request.headers)}")
+        logger.info(f"[{request_id}] SIGNUP RAW BODY (truncated): {raw_body}")
+
+        data = request.get_json(silent=True) or {}
+        logger.info(f"[{request_id}] SIGNUP - Parsed JSON keys: {list(data.keys())}")
         name = data.get('name', '').strip()
         phone = data.get('phone', '').strip()
         email = data.get('email', '').strip().lower()
-        staff = (data.get('staff') or '').strip()
+        staff_raw = (data.get('staff') or '').strip()
+        logger.info(f"[{request_id}] SIGNUP - Staff raw from body: '{staff_raw}', session staff: '{session.get('signup_staff')}'")
+        staff = staff_raw
         
         # Validate required fields
         if not name:
