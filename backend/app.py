@@ -77,6 +77,16 @@ STAFF_MEMBERS = [
     "Sanita",
     "Ben",
 ]
+
+def canonicalize_staff(value: str) -> str:
+    """Normalize various staff inputs to a canonical name from STAFF_MEMBERS.
+    Accepts case-insensitive matches and trims whitespace.
+    """
+    if not value:
+        return ''
+    v = str(value).strip().lower()
+    by_lower = {s.lower(): s for s in STAFF_MEMBERS}
+    return by_lower.get(v, '')
 # CORS configuration
 # Define allowed origins (can be overridden via ALLOWED_ORIGINS env, comma-separated)
 default_allowed_origins = [
@@ -701,7 +711,15 @@ def verify_otp():
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
-        staff = (data.get('staff') or '').strip()
+        # Accept multiple possible keys and normalize
+        staff = (
+            data.get('staff')
+            or data.get('teamMember')
+            or data.get('team_member')
+            or data.get('team_member_name')
+            or ''
+        )
+        staff = canonicalize_staff(staff)
         
         logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Token: {token}, Mobile: {is_mobile}")
         logger.info(f"[{request_id}] OTP VERIFY START - Current session keys: {list(session.keys())}")
@@ -717,7 +735,7 @@ def verify_otp():
             logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing email or token")
             return jsonify({'error': 'Email and token are required'}), 400
         # Require staff selection on login
-        if not staff or staff not in STAFF_MEMBERS:
+        if not staff:
             logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing or invalid staff selection")
             return jsonify({'error': 'Please select the team member who helped you'}), 400
         
@@ -1136,9 +1154,7 @@ def signup_referral():
             return jsonify({'error': 'Email is required'}), 400
         # Staff optional on public form; if missing, try session value captured at login
         if not staff:
-            staff = (session.get('signup_staff') or '').strip()
-        if staff and staff not in STAFF_MEMBERS:
-            staff = ''
+            staff = canonicalize_staff(session.get('signup_staff') or '')
 
         # Validate email format
         try:
