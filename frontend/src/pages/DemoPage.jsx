@@ -10,7 +10,8 @@ const DemoPage = () => {
           height: 100vh;
           z-index: -1;
           overflow: hidden;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          /* Blue background gradient */
+          background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
         }
 
         .gradient-layer {
