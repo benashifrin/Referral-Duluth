@@ -110,3 +110,7 @@ pids
 
 # DynamoDB Local files
 .dynamodb/
+
+# Prevent committing local cookie captures
+cookies.txt
+mobile_cookies.txt
