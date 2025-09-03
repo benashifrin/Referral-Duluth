@@ -44,11 +44,12 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Simplified session configuration for maximum compatibility
+# Mobile-compatible session configuration
 # Remove complex session settings that prevent Set-Cookie headers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Critical for mobile cross-origin
 # Remove SESSION_TYPE, SESSION_USE_SIGNER, and other complex settings
 # Let Flask use its default session interface
 
@@ -61,6 +62,7 @@ logger.info(f"Flask session interface module: {app.session_interface.__class__._
 logger.info(f"Session cookie secure: {app.config.get('SESSION_COOKIE_SECURE')}")
 logger.info(f"Session cookie httponly: {app.config.get('SESSION_COOKIE_HTTPONLY')}")
 logger.info(f"Session cookie max age: {app.config.get('SESSION_COOKIE_MAX_AGE')}")
+logger.info(f"Session cookie samesite: {app.config.get('SESSION_COOKIE_SAMESITE')}")
 # Custom CORS origin checker for Vercel deployments
 def is_allowed_origin(origin):
     allowed_patterns = [
