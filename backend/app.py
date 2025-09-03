@@ -35,10 +35,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Session configuration optimized for mobile browsers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies for mobile browsers
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't specify domain for mobile compatibility
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
 app.config['SESSION_COOKIE_PATH'] = '/'  # Available on all paths
+app.config['SESSION_TYPE'] = 'filesystem'  # Use file-based sessions for reliability
+app.config['SESSION_PERMANENT'] = True  # Make sessions permanent by default
+app.config['SESSION_USE_SIGNER'] = True  # Sign session cookies for security
 
 # Initialize extensions
 db.init_app(app)
@@ -226,6 +229,35 @@ def debug_session_status():
     
     return jsonify(session_info)
 
+@app.route('/debug/mobile-session-test', methods=['POST'])
+def debug_mobile_session_test():
+    """Special endpoint to test mobile session immediately after login"""
+    user_agent = request.headers.get('User-Agent', '')
+    is_mobile = any(mobile in user_agent.lower() for mobile in ['iphone', 'android', 'mobile'])
+    
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({
+            'error': 'Not authenticated',
+            'is_mobile': is_mobile,
+            'session_keys': list(session.keys()),
+            'cookies': list(request.cookies.keys())
+        }), 401
+    
+    # Get user data
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({
+        'success': True,
+        'message': 'Mobile session working correctly',
+        'user': user.to_dict(),
+        'session_id': session.get('user_id'),
+        'is_mobile': is_mobile,
+        'session_keys': list(session.keys())
+    })
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
@@ -359,10 +391,21 @@ def verify_otp():
             db.session.add(user)
             db.session.commit()
         
-        # Set session
+        # Set session with mobile browser compatibility
         session['user_id'] = user.id
         session['user_email'] = user.email
         session.permanent = True
+        
+        # Force session save for mobile browsers
+        db.session.commit()  # Ensure user is saved before session
+        
+        # Log mobile debugging info
+        user_agent = request.headers.get('User-Agent', '')
+        is_mobile_browser = any(mobile in user_agent.lower() for mobile in ['iphone', 'android', 'mobile'])
+        if is_mobile_browser:
+            print(f"Mobile login successful for {email}, session ID: {session.get('user_id')}")
+            print(f"Session data: {dict(session)}")
+            print(f"User agent: {user_agent}")
         
         return jsonify({
             'message': 'Login successful',

@@ -61,6 +61,24 @@ const LoginPage = ({ onLogin }) => {
     setLoading(true);
     try {
       const result = await authAPI.verifyOTP(email, otp);
+      
+      // For mobile browsers, verify session persistence immediately
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        try {
+          // Small delay to ensure session is fully saved
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Verify session is working
+          await authAPI.getCurrentUser();
+          console.log('Mobile session verified successfully');
+        } catch (sessionError) {
+          console.warn('Mobile session verification failed:', sessionError);
+          toast.error('Login successful but session may not persist on mobile. Please try again.');
+          return;
+        }
+      }
+      
       onLogin(result.user);
       toast.success('Login successful!');
     } catch (error) {

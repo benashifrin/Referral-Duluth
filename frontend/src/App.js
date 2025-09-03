@@ -34,6 +34,13 @@ function App() {
         // User not authenticated, which is fine
         setAuthenticated(false);
         setUser(null);
+        
+        // Log mobile authentication failures for debugging
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile && error.response?.status === 401) {
+          console.warn('Mobile authentication check failed:', error);
+          // Could add toast notification or mobile-specific handling here
+        }
       } finally {
         setLoading(false);
       }
