@@ -32,10 +32,13 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Session configuration for cross-domain cookies
+# Session configuration optimized for mobile browsers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies
+app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't specify domain for mobile compatibility
+app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
+app.config['SESSION_COOKIE_PATH'] = '/'  # Available on all paths
 
 # Initialize extensions
 db.init_app(app)
@@ -53,7 +56,12 @@ def is_allowed_origin(origin):
             return True
     return False
 
-CORS(app, supports_credentials=True, origin_callback=lambda origin, *args: is_allowed_origin(origin))
+CORS(app, 
+     supports_credentials=True, 
+     origin_callback=lambda origin, *args: is_allowed_origin(origin),
+     allow_headers=['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     expose_headers=['Set-Cookie'])
 
 # Create database tables
 with app.app_context():
@@ -179,6 +187,45 @@ def test_resend():
     
     return jsonify(steps)
 
+@app.route('/debug/session-status')
+def debug_session_status():
+    """Debug endpoint to check session status (especially for mobile)"""
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    is_mobile = any(mobile_indicator in user_agent.lower() for mobile_indicator in 
+                   ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
+    
+    current_user = get_current_user()
+    
+    session_info = {
+        'is_mobile': is_mobile,
+        'user_agent': user_agent,
+        'cookies_received': list(request.cookies.keys()),
+        'session_data': {
+            'user_id': session.get('user_id'),
+            'user_email': session.get('user_email'),
+            'session_keys': list(session.keys())
+        },
+        'authenticated': current_user is not None,
+        'user_email': current_user.email if current_user else None,
+        'headers': {
+            'Origin': request.headers.get('Origin'),
+            'Referer': request.headers.get('Referer'),
+            'Host': request.headers.get('Host'),
+        },
+        'request_info': {
+            'method': request.method,
+            'url': request.url,
+            'scheme': request.scheme
+        }
+    }
+    
+    print(f"Session debug for {'mobile' if is_mobile else 'desktop'} user:")
+    print(f"Authenticated: {current_user is not None}")
+    print(f"Cookies: {list(request.cookies.keys())}")
+    print(f"Session data: {dict(session)}")
+    
+    return jsonify(session_info)
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
@@ -193,6 +240,16 @@ def require_auth():
         def wrapper(*args, **kwargs):
             user = get_current_user()
             if not user:
+                # Mobile debugging: log failed auth attempts
+                user_agent = request.headers.get('User-Agent', 'Unknown')
+                is_mobile = any(mobile_indicator in user_agent.lower() for mobile_indicator in 
+                               ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
+                
+                print(f"❌ Auth failed - Endpoint: {request.endpoint}, Mobile: {is_mobile}")
+                print(f"Session ID present: {'session' in request.cookies}")
+                print(f"User ID in session: {session.get('user_id', 'None')}")
+                print(f"Cookies received: {list(request.cookies.keys())}")
+                
                 return jsonify({'error': 'Authentication required'}), 401
             return f(user, *args, **kwargs)
         wrapper.__name__ = f.__name__
@@ -340,6 +397,17 @@ def get_current_user_info(user):
 def get_dashboard(user):
     """Get user dashboard data"""
     try:
+        # Mobile debugging: log request details
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        is_mobile = any(mobile_indicator in user_agent.lower() for mobile_indicator in 
+                       ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
+        
+        print(f"Dashboard request - User: {user.email}, Mobile: {is_mobile}")
+        print(f"User-Agent: {user_agent}")
+        print(f"Origin: {request.headers.get('Origin', 'None')}")
+        print(f"Referer: {request.headers.get('Referer', 'None')}")
+        print(f"Cookies: {len(request.cookies)} cookies present")
+        
         stats = user.get_referral_stats()
         recent_referrals = user.referrals_made.order_by(Referral.created_at.desc()).limit(5).all()
         
@@ -350,12 +418,15 @@ def get_dashboard(user):
         if not domain.endswith('/'):
             domain += '/'
             
-        return jsonify({
+        dashboard_data = {
             'user': user.to_dict(),
             'stats': stats,
             'referral_link': f"{domain}ref/{user.referral_code}",
             'recent_referrals': [ref.to_dict() for ref in recent_referrals]
-        })
+        }
+        
+        print(f"Dashboard success for {user.email} - returning {len(str(dashboard_data))} chars")
+        return jsonify(dashboard_data)
         
     except Exception as e:
         print(f"Error getting dashboard: {str(e)}")
