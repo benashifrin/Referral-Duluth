@@ -70,6 +70,25 @@ const LoginPage = ({ onLogin }) => {
       const result = await authAPI.verifyOTP(email, otp);
       console.log(`[Mobile Debug] OTP verification successful:`, result);
       
+      // Report success to server for mobile tracking
+      if (isMobile) {
+        try {
+          await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+              message: 'MOBILE OTP SUCCESS',
+              data: {email, hasResult: !!result},
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent
+            })
+          });
+        } catch (reportError) {
+          console.warn('Failed to report mobile success:', reportError);
+        }
+      }
+      
       // For mobile browsers, verify session persistence immediately
       if (isMobile) {
         console.log(`[Mobile Debug] Starting mobile session verification`);
@@ -88,6 +107,29 @@ const LoginPage = ({ onLogin }) => {
             data: sessionError.response?.data,
             message: sessionError.message
           });
+          
+          // Report session verification failure to server
+          try {
+            await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              credentials: 'include',
+              body: JSON.stringify({
+                message: 'MOBILE SESSION VERIFICATION FAILED',
+                data: {
+                  email,
+                  error: sessionError.message,
+                  status: sessionError.response?.status,
+                  responseData: sessionError.response?.data
+                },
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent
+              })
+            });
+          } catch (reportError) {
+            console.warn('Failed to report session error:', reportError);
+          }
+          
           toast.error(`Mobile session failed: ${sessionError.response?.data?.error || sessionError.message}. Please try again.`);
           return;
         }
@@ -105,6 +147,31 @@ const LoginPage = ({ onLogin }) => {
         data: error.response?.data,
         message: error.message
       });
+      
+      // Report OTP verification failure to server
+      if (isMobile) {
+        try {
+          await fetch(`${process.env.REACT_APP_API_URL || 'https://web-production-80e8.up.railway.app'}/debug/mobile-error`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+              message: 'MOBILE OTP VERIFICATION FAILED',
+              data: {
+                email,
+                error: error.message,
+                status: error.response?.status,
+                responseData: error.response?.data
+              },
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent
+            })
+          });
+        } catch (reportError) {
+          console.warn('Failed to report OTP error:', reportError);
+        }
+      }
+      
       const errorMessage = error.response?.data?.error || error.message || 'OTP verification failed';
       toast.error(`Mobile login error: ${errorMessage}`);
     } finally {

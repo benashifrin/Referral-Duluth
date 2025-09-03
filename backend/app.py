@@ -4,6 +4,9 @@ import re
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
+import logging
+import sys
+import uuid
 try:
     from email_validator import validate_email, EmailNotValidError
 except ImportError:
@@ -24,6 +27,15 @@ from email_service_resend import email_service
 
 # Load environment variables
 load_dotenv()
+
+# Configure comprehensive logging for Railway
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
+    stream=sys.stdout,
+    force=True
+)
+logger = logging.getLogger(__name__)
 
 # Create Flask app
 app = Flask(__name__)
@@ -65,6 +77,40 @@ CORS(app,
      allow_headers=['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
      expose_headers=['Set-Cookie'])
+
+# Request tracking and mobile detection middleware
+@app.before_request
+def before_request():
+    """Add request tracking and mobile detection to all requests"""
+    # Generate unique request ID for tracing
+    request.id = str(uuid.uuid4())[:8]
+    
+    # Detect mobile devices
+    user_agent = request.headers.get('User-Agent', '')
+    request.is_mobile = any(mobile in user_agent.lower() for mobile in 
+                          ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
+    
+    # Log all requests with mobile detection
+    logger.info(f"[{request.id}] {request.method} {request.path} - Mobile: {request.is_mobile} - IP: {request.remote_addr}")
+    
+    # Log detailed info for authentication requests
+    if '/auth/' in request.path:
+        logger.info(f"[{request.id}] AUTH REQUEST - User-Agent: {user_agent}")
+        logger.info(f"[{request.id}] AUTH REQUEST - Session keys: {list(session.keys())}")
+        logger.info(f"[{request.id}] AUTH REQUEST - Cookies: {list(request.cookies.keys())}")
+
+@app.after_request 
+def after_request(response):
+    """Log response details"""
+    logger.info(f"[{getattr(request, 'id', 'unknown')}] RESPONSE - Status: {response.status_code}")
+    
+    # Log session changes for auth requests
+    if '/auth/' in request.path:
+        logger.info(f"[{getattr(request, 'id', 'unknown')}] AUTH RESPONSE - Session after: {list(session.keys())}")
+        if 'Set-Cookie' in response.headers:
+            logger.info(f"[{getattr(request, 'id', 'unknown')}] AUTH RESPONSE - Setting cookies")
+    
+    return response
 
 # Create database tables
 with app.app_context():
@@ -258,6 +304,71 @@ def debug_mobile_session_test():
         'session_keys': list(session.keys())
     })
 
+@app.route('/debug/mobile-session-live', methods=['GET'])
+def debug_mobile_session_live():
+    """Real-time mobile session debugging endpoint"""
+    request_id = getattr(request, 'id', 'unknown')
+    user_agent = request.headers.get('User-Agent', '')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
+    logger.info(f"[{request_id}] MOBILE DEBUG LIVE - Request from mobile: {is_mobile}")
+    
+    # Get current user if authenticated
+    current_user = get_current_user()
+    
+    debug_info = {
+        'timestamp': datetime.now().isoformat(),
+        'request_id': request_id,
+        'is_mobile_detected': is_mobile,
+        'user_agent': user_agent,
+        'session_keys': list(session.keys()),
+        'session_data': {
+            'user_id': session.get('user_id'),
+            'user_email': session.get('user_email'),
+            'permanent': session.permanent
+        },
+        'cookies_received': list(request.cookies.keys()),
+        'authenticated': current_user is not None,
+        'current_user': current_user.to_dict() if current_user else None,
+        'headers': {
+            'Origin': request.headers.get('Origin'),
+            'Referer': request.headers.get('Referer'),
+            'Host': request.headers.get('Host'),
+            'X-Forwarded-For': request.headers.get('X-Forwarded-For')
+        }
+    }
+    
+    logger.info(f"[{request_id}] MOBILE DEBUG RESPONSE - Authenticated: {current_user is not None}")
+    return jsonify(debug_info)
+
+@app.route('/debug/mobile-error', methods=['POST'])
+def debug_mobile_error():
+    """Endpoint for frontend to report mobile-specific errors"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
+    try:
+        data = request.get_json() or {}
+        error_message = data.get('message', 'Unknown mobile error')
+        error_data = data.get('data')
+        timestamp = data.get('timestamp', datetime.now().isoformat())
+        client_user_agent = data.get('userAgent', '')
+        
+        logger.error(f"[{request_id}] MOBILE ERROR REPORT - {error_message}")
+        logger.error(f"[{request_id}] MOBILE ERROR DATA - {error_data}")
+        logger.error(f"[{request_id}] MOBILE ERROR UA - {client_user_agent}")
+        logger.error(f"[{request_id}] MOBILE ERROR TIME - {timestamp}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Mobile error logged successfully',
+            'request_id': request_id
+        })
+        
+    except Exception as e:
+        logger.error(f"[{request_id}] MOBILE ERROR ENDPOINT FAILED - {str(e)}")
+        return jsonify({'error': 'Failed to log mobile error'}), 500
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
@@ -304,17 +415,25 @@ def require_admin():
 @app.route('/auth/send-otp', methods=['POST'])
 def send_otp():
     """Send OTP to user's email"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         
+        logger.info(f"[{request_id}] OTP REQUEST - Email: {email} - Mobile: {is_mobile}")
+        
         if not email:
+            logger.warning(f"[{request_id}] OTP FAILED - No email provided")
             return jsonify({'error': 'Email is required'}), 400
         
         # Validate email format
         try:
             validate_email(email)
+            logger.info(f"[{request_id}] OTP EMAIL VALID - {email}")
         except EmailNotValidError:
+            logger.warning(f"[{request_id}] OTP FAILED - Invalid email format: {email}")
             return jsonify({'error': 'Invalid email format'}), 400
         
         # Clean up expired OTP tokens
@@ -329,9 +448,9 @@ def send_otp():
         
         # Send email (in production, you'd want to do this asynchronously)
         try:
-            print(f"Attempting to send OTP to {email} using {email_service.from_email}")
+            logger.info(f"[{request_id}] OTP EMAIL SENDING - To: {email}, Token: {otp_token.token}, Service: {email_service.from_email}")
             success = email_service.send_otp_email(email, otp_token.token)
-            print(f"Email send result: {success}")
+            logger.info(f"[{request_id}] OTP EMAIL RESULT - Success: {success}")
             
             if success:
                 return jsonify({
@@ -353,12 +472,19 @@ def send_otp():
 @app.route('/auth/verify-otp', methods=['POST'])
 def verify_otp():
     """Verify OTP and log in user"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
         
+        logger.info(f"[{request_id}] OTP VERIFY - Email: {email}, Token: {token}, Mobile: {is_mobile}")
+        logger.info(f"[{request_id}] OTP VERIFY - Current session keys: {list(session.keys())}")
+        
         if not email or not token:
+            logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing email or token")
             return jsonify({'error': 'Email and token are required'}), 400
         
         # Demo mode: Accept specific demo credentials
@@ -369,6 +495,7 @@ def verify_otp():
         }
         
         is_demo_login = email in demo_users and token == demo_users[email]
+        logger.info(f"[{request_id}] OTP VERIFY - Demo login check: {is_demo_login}")
         
         if not is_demo_login:
             # Regular OTP verification
@@ -379,22 +506,29 @@ def verify_otp():
             ).first()
             
             if not otp_token or not otp_token.is_valid():
+                logger.warning(f"[{request_id}] OTP VERIFY FAILED - Invalid or expired OTP for {email}")
                 return jsonify({'error': 'Invalid or expired OTP'}), 400
             
+            logger.info(f"[{request_id}] OTP VERIFY SUCCESS - Valid OTP token found for {email}")
             # Mark token as used
             otp_token.use_token()
         
         # Find or create user
         user = User.query.filter_by(email=email).first()
         if not user:
+            logger.info(f"[{request_id}] USER CREATE - Creating new user for {email}")
             user = User(email=email)
             db.session.add(user)
             db.session.commit()
+        else:
+            logger.info(f"[{request_id}] USER FOUND - Existing user {email} (ID: {user.id})")
         
         # Set session with mobile browser compatibility
+        logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
         session['user_id'] = user.id
         session['user_email'] = user.email
         session.permanent = True
+        logger.info(f"[{request_id}] SESSION SET - After: {list(session.keys())}, Mobile: {is_mobile}")
         
         # Force session save for mobile browsers
         db.session.commit()  # Ensure user is saved before session
