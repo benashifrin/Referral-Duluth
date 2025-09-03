@@ -89,63 +89,50 @@ class EmailService:
             return False
     
     def send_referral_notification(self, referrer_email, referred_email, referral_status):
-        """Send notification when referral status changes"""
+        """Send notification when referral status changes (no PII, no monetary claims)."""
         try:
             message = MIMEMultipart("alternative")
             message["From"] = self.email_user
             message["To"] = referrer_email
             
             if referral_status == 'signed_up':
-                message["Subject"] = "Great News! Your Referral Signed Up"
-                html_content = f"""
-                <html>
-                  <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;">
-                      <h1 style="margin: 0; font-size: 28px;">🎉 Referral Update</h1>
-                    </div>
-                    
-                    <div style="padding: 40px 20px; text-align: center;">
-                      <h2 style="color: #333;">Someone used your referral link!</h2>
-                      <p style="color: #666; font-size: 16px;">
-                        <strong>{referred_email}</strong> has signed up using your referral link.
-                        Once they complete their first appointment, you'll earn <strong>$50</strong>!
-                      </p>
-                      <div style="margin: 30px 0; padding: 20px; background: #f0f8ff; border-radius: 10px;">
-                        <p style="margin: 0; color: #333; font-size: 14px;">
-                          We'll notify you when they complete their appointment and your earnings are confirmed.
-                        </p>
-                      </div>
-                    </div>
-                  </body>
-                </html>
-                """
+                message["Subject"] = "Referral Update"
+                html_content = (
+                    "<html>"
+                    "  <body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">"
+                    "    <div style=\"background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;\">"
+                    "      <h1 style=\"margin: 0; font-size: 28px;\">Referral Update</h1>"
+                    "    </div>"
+                    "    <div style=\"padding: 40px 20px; text-align: center;\">"
+                    "      <h2 style=\"color: #333;\">Thank you for sharing your referral link.</h2>"
+                    "      <p style=\"color: #666; font-size: 16px;\">A referral associated with your link has signed up. We’ll notify you after their first appointment.</p>"
+                    "    </div>"
+                    "  </body>"
+                    "</html>"
+                )
             elif referral_status == 'completed':
-                message["Subject"] = "🎉 You Earned $50! Referral Completed"
-                html_content = f"""
-                <html>
-                  <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;">
-                      <h1 style="margin: 0; font-size: 28px;">💰 Congratulations!</h1>
-                    </div>
-                    
-                    <div style="padding: 40px 20px; text-align: center;">
-                      <h2 style="color: #333;">You earned $50!</h2>
-                      <p style="color: #666; font-size: 16px;">
-                        <strong>{referred_email}</strong> has completed their first appointment.
-                        Your referral earnings have been updated!
-                      </p>
-                      <div style="margin: 30px 0; padding: 20px; background: #f0f8ff; border-radius: 10px;">
-                        <p style="margin: 0; color: #333; font-size: 14px;">
-                          Keep sharing your referral link to earn more. You can earn up to $500 per year!
-                        </p>
-                      </div>
-                    </div>
-                  </body>
-                </html>
-                """
+                message["Subject"] = "Referral Completed"
+                html_content = (
+                    "<html>"
+                    "  <body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">"
+                    "    <div style=\"background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;\">"
+                    "      <h1 style=\"margin: 0; font-size: 28px;\">Referral Update</h1>"
+                    "    </div>"
+                    "    <div style=\"padding: 40px 20px; text-align: center;\">"
+                    "      <h2 style=\"color: #333;\">Thanks for supporting our dental community.</h2>"
+                    "      <p style=\"color: #666; font-size: 16px;\">A referral associated with your link has completed their first visit. Your dashboard has been updated.</p>"
+                    "    </div>"
+                    "  </body>"
+                    "</html>"
+                )
             
             # Create the plain-text alternative
-            text = f"Your referral {referred_email} status has been updated to: {referral_status}"
+            text = (
+                "Referral Update\n\n"
+                "Thank you for sharing your referral link. "
+                f"Status change: {referral_status}. "
+                "Visit your dashboard for details."
+            )
             
             part1 = MIMEText(text, "plain")
             part2 = MIMEText(html_content, "html")
