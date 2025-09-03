@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 import re
 from dotenv import load_dotenv
@@ -141,6 +141,17 @@ def after_request(response):
 # Create database tables
 with app.app_context():
     db.create_all()
+    
+    # Debug session interface after app context is created
+    logger.info("=" * 50)
+    logger.info("FLASK SESSION INTERFACE DEBUGGING")
+    logger.info(f"Session interface type: {type(app.session_interface).__name__}")
+    logger.info(f"Session interface module: {app.session_interface.__class__.__module__}")
+    logger.info(f"Session interface: {app.session_interface}")
+    logger.info(f"SECRET_KEY configured: {'SECRET_KEY' in app.config}")
+    logger.info(f"SECRET_KEY length: {len(app.config.get('SECRET_KEY', ''))}")
+    logger.info(f"Session config: {dict((k, v) for k, v in app.config.items() if 'SESSION' in k)}")
+    logger.info("=" * 50)
     
     # Create admin user if it doesn't exist
     admin_email = os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com')
@@ -438,6 +449,94 @@ def debug_mobile_cookie_test():
             'request_id': request_id
         })
 
+@app.route('/debug/manual-cookie-test', methods=['GET', 'POST'])
+def debug_manual_cookie_test():
+    """Test manual cookie setting bypassing Flask sessions entirely"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
+    if request.method == 'POST':
+        # Manually set cookies using make_response
+        logger.info(f"[{request_id}] MANUAL COOKIE TEST - Setting manual cookie for mobile: {is_mobile}")
+        
+        response_data = {
+            'success': True,
+            'message': 'Manual cookie set',
+            'is_mobile': is_mobile,
+            'request_id': request_id,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        response = make_response(jsonify(response_data))
+        
+        # Set multiple test cookies with different configurations
+        response.set_cookie('manual_test', 'test_value_123', 
+                          max_age=3600, secure=True, httponly=True)
+        response.set_cookie('mobile_test', f'mobile_{is_mobile}', 
+                          max_age=3600, secure=True, httponly=False)
+        response.set_cookie('simple_test', 'simple_value')
+        
+        logger.info(f"[{request_id}] MANUAL COOKIE TEST - Response created with manual cookies")
+        logger.info(f"[{request_id}] MANUAL COOKIE TEST - Response headers: {dict(response.headers)}")
+        
+        return response
+    
+    else:
+        # Check manual cookies
+        manual_test = request.cookies.get('manual_test')
+        mobile_test = request.cookies.get('mobile_test') 
+        simple_test = request.cookies.get('simple_test')
+        
+        logger.info(f"[{request_id}] MANUAL COOKIE TEST - Checking manual cookies for mobile: {is_mobile}")
+        logger.info(f"[{request_id}] MANUAL COOKIE TEST - Cookies received: {dict(request.cookies)}")
+        
+        return jsonify({
+            'manual_test': manual_test,
+            'mobile_test': mobile_test,
+            'simple_test': simple_test,
+            'all_cookies': dict(request.cookies),
+            'is_mobile': is_mobile,
+            'request_id': request_id
+        })
+
+@app.route('/debug/simple-cookie-test')
+def debug_simple_cookie_test():
+    """Minimal cookie test - just set and check a simple cookie"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
+    # Check if we're setting or checking
+    action = request.args.get('action', 'check')
+    
+    if action == 'set':
+        logger.info(f"[{request_id}] SIMPLE COOKIE - Setting test cookie for mobile: {is_mobile}")
+        
+        response = make_response(jsonify({
+            'action': 'set',
+            'message': 'Simple cookie set',
+            'is_mobile': is_mobile,
+            'timestamp': datetime.now().isoformat()
+        }))
+        
+        # Set the simplest possible cookie
+        response.set_cookie('test_cookie', 'test_value_simple')
+        
+        logger.info(f"[{request_id}] SIMPLE COOKIE - Set-Cookie header: {response.headers.get('Set-Cookie')}")
+        return response
+    
+    else:
+        test_cookie = request.cookies.get('test_cookie')
+        logger.info(f"[{request_id}] SIMPLE COOKIE - Checking cookie for mobile: {is_mobile}")
+        logger.info(f"[{request_id}] SIMPLE COOKIE - Cookie value: {test_cookie}")
+        
+        return jsonify({
+            'action': 'check',
+            'test_cookie': test_cookie,
+            'cookie_exists': test_cookie is not None,
+            'all_cookies': dict(request.cookies),
+            'is_mobile': is_mobile
+        })
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
@@ -626,11 +725,34 @@ def verify_otp():
             except Exception as save_error:
                 logger.error(f"[{request_id}] MOBILE LOGIN ERROR - Session handling failed: {str(save_error)}")
         
-        return jsonify({
+        # Create manual response to ensure session cookie is set
+        response_data = {
             'message': 'Login successful',
             'user': user.to_dict(),
             'stats': user.get_referral_stats()
-        })
+        }
+        
+        response = make_response(jsonify(response_data))
+        
+        # Manually force session save and cookie setting
+        try:
+            app.session_interface.save_session(app, session, response)
+            logger.info(f"[{request_id}] MANUAL SESSION SAVE - Forced session save to response")
+        except Exception as save_error:
+            logger.error(f"[{request_id}] MANUAL SESSION SAVE - Failed: {str(save_error)}")
+            
+            # Fallback: manually set session cookie
+            try:
+                from itsdangerous import URLSafeTimedSerializer
+                serializer = URLSafeTimedSerializer(app.secret_key)
+                cookie_val = serializer.dumps(dict(session))
+                response.set_cookie('session', cookie_val, 
+                                  max_age=86400, secure=True, httponly=True)
+                logger.info(f"[{request_id}] FALLBACK SESSION COOKIE - Manually set session cookie")
+            except Exception as fallback_error:
+                logger.error(f"[{request_id}] FALLBACK SESSION COOKIE - Failed: {str(fallback_error)}")
+        
+        return response
         
     except Exception as e:
         db.session.rollback()
