@@ -930,10 +930,8 @@ def track_referral_click(referral_code):
             domain += '/'
         share_url = f"{domain}ref/{referral_code}"
         # Prefer a branded OG image if provided, else fall back to a QR image for the link
-        og_image = os.getenv('OG_IMAGE_URL', None)
-        if not og_image:
-            from urllib.parse import quote
-            og_image = f"https://api.qrserver.com/v1/create-qr-code/?size=600x600&data={quote(share_url)}"
+        # Prefer a branded OG image if provided; default to site-hosted preview image
+        og_image = os.getenv('OG_IMAGE_URL', 'https://www.bestdentistduluth.com/og/referralrichtxt.png')
 
         # Serve a rich preview landing page with Open Graph metadata
         return f"""
