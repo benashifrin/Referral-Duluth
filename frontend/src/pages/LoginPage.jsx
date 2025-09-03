@@ -9,6 +9,8 @@ const LoginPage = ({ onLogin }) => {
   const [step, setStep] = useState(1); // 1: email, 2: OTP
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
+  const STAFF_MEMBERS = ["Amanda", "Taquila", "Monti", "Sanita", "Ben"];
+  const [staff, setStaff] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
@@ -67,7 +69,7 @@ const LoginPage = ({ onLogin }) => {
       console.log(`[Mobile Debug] Is mobile: ${isMobile}`);
       console.log(`[Mobile Debug] User agent: ${navigator.userAgent}`);
       
-      const result = await authAPI.verifyOTP(email, otp);
+      const result = await authAPI.verifyOTP(email, otp, staff);
       console.log(`[Mobile Debug] OTP verification successful:`, result);
       
       // Report success to server for mobile tracking
@@ -291,6 +293,25 @@ const LoginPage = ({ onLogin }) => {
                   disabled={loading}
                   autoFocus
                 />
+              </div>
+
+              <div>
+                <label htmlFor="staff" className="block text-sm font-medium text-gray-700 mb-3">
+                  Team Member Who Helped You (optional)
+                </label>
+                <select
+                  id="staff"
+                  name="staff"
+                  value={staff}
+                  onChange={(e) => setStaff(e.target.value)}
+                  className="input-field h-12 text-base"
+                  disabled={loading}
+                >
+                  <option value="">Select team member</option>
+                  {STAFF_MEMBERS.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
 
               <button

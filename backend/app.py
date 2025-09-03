@@ -701,6 +701,7 @@ def verify_otp():
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
+        staff = (data.get('staff') or '').strip()
         
         logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Token: {token}, Mobile: {is_mobile}")
         logger.info(f"[{request_id}] OTP VERIFY START - Current session keys: {list(session.keys())}")
@@ -758,6 +759,11 @@ def verify_otp():
             logger.info(f"[{request_id}] MOBILE CRITICAL - Session before setup: {list(session.keys())}")
             logger.info(f"[{request_id}] MOBILE CRITICAL - User object ready: {user.id} - {user.email}")
         
+        # Optionally capture staff member selection for later referral attribution
+        if staff and staff in STAFF_MEMBERS:
+            session['signup_staff'] = staff
+            logger.info(f"[{request_id}] OTP VERIFY - Captured staff selection in session: {staff}")
+
         # Set session with mobile browser compatibility
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
         logger.info(f"[{request_id}] SESSION SET - Session interface type: {type(app.session_interface).__name__}")
@@ -1032,17 +1038,7 @@ def track_referral_click(referral_code):
                         <input type="email" id="email" placeholder="your.email@example.com" required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="staff">Team Member Who Helped You *</label>
-                        <select id="staff" required>
-                            <option value="" disabled selected>Select team member</option>
-                            <option value="Amanda">Amanda</option>
-                            <option value="Taquila">Taquila</option>
-                            <option value="Monti">Monti</option>
-                            <option value="Sanita">Sanita</option>
-                            <option value="Ben">Ben</option>
-                        </select>
-                    </div>
+                    
                     
                     <button type="submit">Complete Step 1 - Submit Information</button>
                 </form>
@@ -1058,7 +1054,6 @@ def track_referral_click(referral_code):
                     const name = document.getElementById('name').value;
                     const phone = document.getElementById('phone').value;
                     const email = document.getElementById('email').value;
-                    const staff = document.getElementById('staff').value;
                     
                     const submitButton = event.target.querySelector('button[type="submit"]');
                     const originalText = submitButton.textContent;
@@ -1072,8 +1067,7 @@ def track_referral_click(referral_code):
                             body: JSON.stringify({{ 
                                 name: name,
                                 phone: phone,
-                                email: email,
-                                staff: staff
+                                email: email
                             }})
                         }});
                         
@@ -1137,11 +1131,11 @@ def signup_referral():
             return jsonify({'error': 'Phone number is required'}), 400
         if not email:
             return jsonify({'error': 'Email is required'}), 400
-        # Validate staff member selection
+        # Staff optional on public form; if missing, try session value captured at login
         if not staff:
-            return jsonify({'error': 'Please select the team member who helped you'}), 400
-        if staff not in STAFF_MEMBERS:
-            return jsonify({'error': 'Invalid staff member selected'}), 400
+            staff = (session.get('signup_staff') or '').strip()
+        if staff and staff not in STAFF_MEMBERS:
+            staff = ''
 
         # Validate email format
         try:
@@ -1172,7 +1166,8 @@ def signup_referral():
         referral.referred_name = name
         referral.referred_phone = phone
         referral.status = 'signed_up'
-        referral.signed_up_by_staff = staff
+        if staff:
+            referral.signed_up_by_staff = staff
         referral.origin = 'link'
         db.session.add(referral)
         db.session.commit()
