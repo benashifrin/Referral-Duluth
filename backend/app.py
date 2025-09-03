@@ -716,6 +716,10 @@ def verify_otp():
         if not email or not token:
             logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing email or token")
             return jsonify({'error': 'Email and token are required'}), 400
+        # Require staff selection on login
+        if not staff or staff not in STAFF_MEMBERS:
+            logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing or invalid staff selection")
+            return jsonify({'error': 'Please select the team member who helped you'}), 400
         
         # Demo mode: Accept specific demo credentials
         demo_users = {
@@ -759,10 +763,9 @@ def verify_otp():
             logger.info(f"[{request_id}] MOBILE CRITICAL - Session before setup: {list(session.keys())}")
             logger.info(f"[{request_id}] MOBILE CRITICAL - User object ready: {user.id} - {user.email}")
         
-        # Optionally capture staff member selection for later referral attribution
-        if staff and staff in STAFF_MEMBERS:
-            session['signup_staff'] = staff
-            logger.info(f"[{request_id}] OTP VERIFY - Captured staff selection in session: {staff}")
+        # Capture staff member selection for later referral attribution
+        session['signup_staff'] = staff
+        logger.info(f"[{request_id}] OTP VERIFY - Captured staff selection in session: {staff}")
 
         # Set session with mobile browser compatibility
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")

@@ -59,6 +59,10 @@ const LoginPage = ({ onLogin }) => {
       toast.error('Please enter a valid 6-digit code');
       return;
     }
+    if (!staff) {
+      toast.error('Please select the team member who helped you');
+      return;
+    }
     
     setLoading(true);
     
@@ -297,7 +301,7 @@ const LoginPage = ({ onLogin }) => {
 
               <div>
                 <label htmlFor="staff" className="block text-sm font-medium text-gray-700 mb-3">
-                  Team Member Who Helped You (optional)
+                  Team Member Who Helped You
                 </label>
                 <select
                   id="staff"
@@ -306,6 +310,7 @@ const LoginPage = ({ onLogin }) => {
                   onChange={(e) => setStaff(e.target.value)}
                   className="input-field h-12 text-base"
                   disabled={loading}
+                  required
                 >
                   <option value="">Select team member</option>
                   {STAFF_MEMBERS.map((name) => (
@@ -316,7 +321,7 @@ const LoginPage = ({ onLogin }) => {
 
               <button
                 type="submit"
-                disabled={loading || otp.length !== 6}
+                disabled={loading || otp.length !== 6 || !staff}
                 className="w-full btn-primary h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
