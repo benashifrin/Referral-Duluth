@@ -59,30 +59,54 @@ const LoginPage = ({ onLogin }) => {
     }
     
     setLoading(true);
+    
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     try {
+      console.log(`[Mobile Debug] Starting OTP verification for ${email}`);
+      console.log(`[Mobile Debug] Is mobile: ${isMobile}`);
+      console.log(`[Mobile Debug] User agent: ${navigator.userAgent}`);
+      
       const result = await authAPI.verifyOTP(email, otp);
+      console.log(`[Mobile Debug] OTP verification successful:`, result);
       
       // For mobile browsers, verify session persistence immediately
-      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       if (isMobile) {
+        console.log(`[Mobile Debug] Starting mobile session verification`);
         try {
           // Small delay to ensure session is fully saved
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1 second
           
           // Verify session is working
-          await authAPI.getCurrentUser();
-          console.log('Mobile session verified successfully');
+          const sessionCheck = await authAPI.getCurrentUser();
+          console.log(`[Mobile Debug] Session verification successful:`, sessionCheck);
         } catch (sessionError) {
-          console.warn('Mobile session verification failed:', sessionError);
-          toast.error('Login successful but session may not persist on mobile. Please try again.');
+          console.error(`[Mobile Debug] Session verification failed:`, sessionError);
+          console.error(`[Mobile Debug] Session error details:`, {
+            status: sessionError.response?.status,
+            statusText: sessionError.response?.statusText,
+            data: sessionError.response?.data,
+            message: sessionError.message
+          });
+          toast.error(`Mobile session failed: ${sessionError.response?.data?.error || sessionError.message}. Please try again.`);
           return;
         }
       }
       
+      console.log(`[Mobile Debug] Setting user in app state`);
       onLogin(result.user);
       toast.success('Login successful!');
+      console.log(`[Mobile Debug] Login process completed successfully`);
     } catch (error) {
-      toast.error(handleAPIError(error));
+      console.error(`[Mobile Debug] OTP verification failed:`, error);
+      console.error(`[Mobile Debug] Error details:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      const errorMessage = error.response?.data?.error || error.message || 'OTP verification failed';
+      toast.error(`Mobile login error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

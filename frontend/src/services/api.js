@@ -5,6 +5,11 @@ const API_BASE_URL = process.env.REACT_APP_API_URL ||
     ? 'https://web-production-80e8.up.railway.app' 
     : 'http://localhost:5000');
 
+// Debug API URL for mobile troubleshooting
+console.log('[API Debug] API_BASE_URL:', API_BASE_URL);
+console.log('[API Debug] NODE_ENV:', process.env.NODE_ENV);
+console.log('[API Debug] REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+
 // Detect if running on mobile device
 const isMobile = () => {
   return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
