@@ -47,7 +47,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Session configuration optimized for mobile browsers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow cross-site cookies for mobile browsers
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Changed from 'None' for mobile Safari compatibility
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't specify domain for mobile compatibility
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
 app.config['SESSION_COOKIE_PATH'] = '/'  # Available on all paths
