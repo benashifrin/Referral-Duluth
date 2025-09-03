@@ -1,0 +1,8 @@
+# Ignore frontend files for backend deployment
+frontend/
+api/
+node_modules/
+*.log
+.git/
+.env.local
+.DS_Store

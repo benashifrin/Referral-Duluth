@@ -1,0 +1,8 @@
+[build]
+command = "pip install -r backend/requirements.txt"
+
+[deploy]
+startCommand = "cd backend && gunicorn --config gunicorn.conf.py app:app"
+
+[env]
+PYTHONPATH = "./backend"
