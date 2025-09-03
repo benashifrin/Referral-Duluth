@@ -17,37 +17,37 @@ const Header = ({ user, onLogout }) => {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 sm:h-16 sm:py-0">
           {/* Logo/Brand */}
-          <div className="flex items-center">
+          <div className="flex items-center w-full sm:w-auto">
             <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-gradient">
+              <h1 className="text-lg sm:text-xl font-bold text-gradient leading-tight whitespace-normal">
                 🦷 Dental Referral Program
               </h1>
             </div>
           </div>
-          
+
           {/* User menu */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto justify-between sm:justify-end">
             {user && (
               <>
-                <div className="flex items-center space-x-1 sm:space-x-2">
-                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                  <div className="flex flex-col sm:block">
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-none">
+                <div className="flex items-center space-x-2 min-w-0">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 truncate max-w-[60vw] sm:max-w-none">
                       {user.email}
                     </span>
                     {user.is_admin && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 mt-1 sm:mt-0 sm:ml-2">
+                      <span className="inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 whitespace-nowrap">
                         Admin
                       </span>
                     )}
                   </div>
                 </div>
-                
+
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 min-h-[44px] touch-manipulation"
+                  className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 min-h-[44px] touch-manipulation mt-2 sm:mt-0"
                 >
                   <LogOut className="h-4 w-4 sm:mr-1" />
                   <span className="ml-1 sm:ml-0">Logout</span>
