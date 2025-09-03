@@ -47,7 +47,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Session configuration optimized for mobile browsers
 app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Changed from 'None' for mobile Safari compatibility
+# Remove SameSite restriction entirely for maximum mobile compatibility
+# app.config['SESSION_COOKIE_SAMESITE'] = None  # Let Flask handle default
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Don't specify domain for mobile compatibility
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
 app.config['SESSION_COOKIE_PATH'] = '/'  # Available on all paths
@@ -101,14 +102,36 @@ def before_request():
 
 @app.after_request 
 def after_request(response):
-    """Log response details"""
-    logger.info(f"[{getattr(request, 'id', 'unknown')}] RESPONSE - Status: {response.status_code}")
+    """Log response details with detailed cookie information"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
     
-    # Log session changes for auth requests
+    logger.info(f"[{request_id}] RESPONSE - Status: {response.status_code}")
+    
+    # Log session changes for auth requests with detailed cookie info
     if '/auth/' in request.path:
-        logger.info(f"[{getattr(request, 'id', 'unknown')}] AUTH RESPONSE - Session after: {list(session.keys())}")
+        logger.info(f"[{request_id}] AUTH RESPONSE - Session after: {list(session.keys())}")
+        
+        # Log detailed cookie headers for mobile debugging
         if 'Set-Cookie' in response.headers:
-            logger.info(f"[{getattr(request, 'id', 'unknown')}] AUTH RESPONSE - Setting cookies")
+            set_cookie_header = response.headers.get('Set-Cookie')
+            logger.info(f"[{request_id}] AUTH RESPONSE - Setting cookies for mobile: {is_mobile}")
+            logger.info(f"[{request_id}] AUTH RESPONSE - Cookie header: {set_cookie_header}")
+            
+            # Parse and log cookie attributes
+            if 'session=' in set_cookie_header:
+                logger.info(f"[{request_id}] AUTH RESPONSE - Session cookie detected")
+                if 'Secure' in set_cookie_header:
+                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie is Secure (HTTPS only)")
+                if 'HttpOnly' in set_cookie_header:
+                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie is HttpOnly")
+                if 'SameSite' in set_cookie_header:
+                    samesite_match = set_cookie_header.split('SameSite=')[1].split(';')[0] if 'SameSite=' in set_cookie_header else 'Not set'
+                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie SameSite: {samesite_match}")
+                else:
+                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie SameSite: Not specified (Flask default)")
+        else:
+            logger.warning(f"[{request_id}] AUTH RESPONSE - No Set-Cookie header found!")
     
     return response
 
@@ -369,6 +392,49 @@ def debug_mobile_error():
         logger.error(f"[{request_id}] MOBILE ERROR ENDPOINT FAILED - {str(e)}")
         return jsonify({'error': 'Failed to log mobile error'}), 500
 
+@app.route('/debug/mobile-cookie-test', methods=['GET', 'POST'])
+def debug_mobile_cookie_test():
+    """Test cookie setting and retrieval for mobile browsers"""
+    request_id = getattr(request, 'id', 'unknown')
+    is_mobile = getattr(request, 'is_mobile', False)
+    
+    if request.method == 'POST':
+        # Set a test cookie
+        session['mobile_test'] = 'cookie_test_value'
+        session['mobile_test_timestamp'] = datetime.now().isoformat()
+        session.permanent = True
+        
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Setting test cookie for mobile: {is_mobile}")
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Session keys after set: {list(session.keys())}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test cookie set',
+            'session_keys': list(session.keys()),
+            'is_mobile': is_mobile,
+            'request_id': request_id
+        })
+    
+    else:
+        # Check if test cookie exists
+        mobile_test = session.get('mobile_test')
+        mobile_test_timestamp = session.get('mobile_test_timestamp')
+        
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Checking test cookie for mobile: {is_mobile}")
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Session keys on check: {list(session.keys())}")
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Cookies received: {list(request.cookies.keys())}")
+        logger.info(f"[{request_id}] MOBILE COOKIE TEST - Test cookie value: {mobile_test}")
+        
+        return jsonify({
+            'cookie_exists': mobile_test is not None,
+            'cookie_value': mobile_test,
+            'cookie_timestamp': mobile_test_timestamp,
+            'session_keys': list(session.keys()),
+            'cookies_received': list(request.cookies.keys()),
+            'is_mobile': is_mobile,
+            'request_id': request_id
+        })
+
 # Helper function to validate session
 def get_current_user():
     """Get current user from session"""
@@ -533,13 +599,21 @@ def verify_otp():
         # Force session save for mobile browsers
         db.session.commit()  # Ensure user is saved before session
         
-        # Log mobile debugging info
+        # Log mobile debugging info and apply mobile-specific session handling
         user_agent = request.headers.get('User-Agent', '')
         is_mobile_browser = any(mobile in user_agent.lower() for mobile in ['iphone', 'android', 'mobile'])
         if is_mobile_browser:
-            print(f"Mobile login successful for {email}, session ID: {session.get('user_id')}")
-            print(f"Session data: {dict(session)}")
-            print(f"User agent: {user_agent}")
+            logger.info(f"[{request_id}] MOBILE LOGIN SUCCESS - {email}, session ID: {session.get('user_id')}")
+            logger.info(f"[{request_id}] MOBILE LOGIN SUCCESS - Session data: {dict(session)}")
+            logger.info(f"[{request_id}] MOBILE LOGIN SUCCESS - User agent: {user_agent}")
+            
+            # Additional mobile session handling
+            try:
+                # Force session modification flag for mobile browsers
+                session.modified = True
+                logger.info(f"[{request_id}] MOBILE LOGIN SUCCESS - Forced session modified flag")
+            except Exception as save_error:
+                logger.error(f"[{request_id}] MOBILE LOGIN ERROR - Session handling failed: {str(save_error)}")
         
         return jsonify({
             'message': 'Login successful',
