@@ -28,27 +28,29 @@ const Header = ({ user, onLogout }) => {
           </div>
           
           {/* User menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {user && (
               <>
-                <div className="flex items-center space-x-2">
-                  <User className="h-5 w-5 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                    {user.email}
-                  </span>
-                  {user.is_admin && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                      Admin
+                <div className="flex items-center space-x-1 sm:space-x-2">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                  <div className="flex flex-col sm:block">
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-none">
+                      {user.email}
                     </span>
-                  )}
+                    {user.is_admin && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 mt-1 sm:mt-0 sm:ml-2">
+                        Admin
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+                  className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 min-h-[44px] touch-manipulation"
                 >
-                  <LogOut className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:block">Logout</span>
+                  <LogOut className="h-4 w-4 sm:mr-1" />
+                  <span className="ml-1 sm:ml-0">Logout</span>
                 </button>
               </>
             )}

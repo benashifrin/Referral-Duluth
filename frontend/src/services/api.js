@@ -5,11 +5,16 @@ const API_BASE_URL = process.env.REACT_APP_API_URL ||
     ? 'https://web-production-80e8.up.railway.app' 
     : 'http://localhost:5000');
 
+// Detect if running on mobile device
+const isMobile = () => {
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // Important for session cookies
-  timeout: 10000,
+  timeout: isMobile() ? 15000 : 10000, // Longer timeout for mobile networks
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,16 +31,36 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor with mobile retry logic
 api.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle unauthorized access
     if (error.response?.status === 401) {
-      // Handle unauthorized access
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+
+    // Mobile retry logic for network issues
+    if (!originalRequest._retry && 
+        (error.code === 'NETWORK_ERROR' || 
+         error.code === 'ECONNABORTED' || 
+         error.response?.status >= 500) && 
+        isMobile()) {
+      
+      originalRequest._retry = true;
+      
+      // Wait 2 seconds before retry on mobile
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Retry the request
+      return api(originalRequest);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -112,17 +137,38 @@ export const adminAPI = {
   },
 };
 
-// Utility function to handle API errors
+// Utility function to handle API errors with mobile-specific messages
 export const handleAPIError = (error) => {
   if (error.response) {
     // Server responded with error status
     return error.response.data?.error || 'Server error occurred';
   } else if (error.request) {
-    // Network error
+    // Network error - provide mobile-specific guidance
+    if (isMobile()) {
+      return 'Network error. Please check your mobile connection and try again.';
+    }
     return 'Network error. Please check your connection.';
   } else {
     // Other error
     return 'An unexpected error occurred';
+  }
+};
+
+// Network connectivity check for mobile
+export const checkNetworkConnectivity = async () => {
+  if (!navigator.onLine) {
+    throw new Error('No internet connection detected');
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-cache'
+    });
+    return true;
+  } catch (error) {
+    throw new Error('Unable to reach server');
   }
 };
 
