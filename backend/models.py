@@ -86,6 +86,7 @@ class Referral(db.Model):
     referred_phone = db.Column(db.String(20), nullable=True)
     signed_up_by_staff = db.Column(db.String(50), nullable=True)  # Employee who signed up the patient
     status = db.Column(db.String(20), default='pending')  # pending, signed_up, completed
+    origin = db.Column(db.String(20), default='link')  # 'link' (via referral link) or 'manual'
     earnings = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
@@ -119,6 +120,7 @@ class Referral(db.Model):
             'referred_name': self.referred_name,
             'referred_phone': self.referred_phone,
             'signed_up_by_staff': self.signed_up_by_staff,
+            'origin': self.origin,
             'status': self.status,
             'earnings': self.earnings,
             'created_at': self.created_at.isoformat(),

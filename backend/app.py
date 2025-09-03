@@ -1173,6 +1173,7 @@ def signup_referral():
         referral.referred_phone = phone
         referral.status = 'signed_up'
         referral.signed_up_by_staff = staff
+        referral.origin = 'link'
         db.session.add(referral)
         db.session.commit()
         
@@ -1267,6 +1268,7 @@ def admin_adjust_user_referrals(user, user_id):
                     r = Referral(referrer_id=target_user.id, referred_email=f"manual+{uuid.uuid4().hex[:8]}@example.com")
                     r.status = 'completed'
                     r.completed_at = datetime.utcnow()
+                    r.origin = 'manual'
                     if target_user.can_earn_more():
                         r.earnings = 50.0
                         target_user.total_earnings += 50.0
@@ -1298,6 +1300,7 @@ def admin_adjust_user_referrals(user, user_id):
                 for _ in range(to_add):
                     r = Referral(referrer_id=target_user.id, referred_email=f"manual+{uuid.uuid4().hex[:8]}@example.com")
                     r.status = 'signed_up'
+                    r.origin = 'manual'
                     db.session.add(r)
                 changes['signed_up'] = {'from': current_signed, 'to': desired_signed_up}
             elif desired_signed_up < current_signed:
@@ -1429,7 +1432,7 @@ def export_referrals(user):
         # Write header
         writer.writerow([
             'ID', 'Referrer Email', 'Referrer Code', 'Referred Email',
-            'Signed Up By Staff', 'Status', 'Earnings', 'Created At', 'Completed At'
+            'Signed Up By Staff', 'Origin', 'Status', 'Earnings', 'Created At', 'Completed At'
         ])
         
         # Write data
@@ -1440,6 +1443,7 @@ def export_referrals(user):
                 referral.referrer.referral_code,
                 referral.referred_email,
                 referral.signed_up_by_staff or '',
+                referral.origin or 'link',
                 referral.status,
                 referral.earnings,
                 referral.created_at.isoformat(),
