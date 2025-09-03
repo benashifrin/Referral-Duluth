@@ -183,14 +183,29 @@ with app.app_context():
     logger.info(f"Session config: {dict((k, v) for k, v in app.config.items() if 'SESSION' in k)}")
     logger.info("=" * 50)
     
-    # Create admin user if it doesn't exist
-    admin_email = os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com')
-    admin_user = User.query.filter_by(email=admin_email).first()
-    if not admin_user:
-        admin_user = User(email=admin_email, is_admin=True)
-        db.session.add(admin_user)
-        db.session.commit()
-        print(f"Created admin user: {admin_email}")
+    # Ensure configured admin users exist and are marked as admin
+    configured_admins = []
+    admins_env = os.getenv('ADMIN_EMAILS')
+    if admins_env:
+        configured_admins = [e.strip().lower() for e in admins_env.split(',') if e.strip()]
+    else:
+        configured_admins = [os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com').strip().lower()]
+
+    logger.info(f"Configured admin emails: {configured_admins}")
+
+    for admin_email in configured_admins:
+        if not admin_email:
+            continue
+        admin_user = User.query.filter_by(email=admin_email).first()
+        if not admin_user:
+            admin_user = User(email=admin_email, is_admin=True)
+            db.session.add(admin_user)
+            db.session.commit()
+            print(f"Created admin user: {admin_email}")
+        elif not admin_user.is_admin:
+            admin_user.is_admin = True
+            db.session.commit()
+            print(f"Updated existing user to admin: {admin_email}")
 
 # Health check endpoint
 @app.route('/health')
