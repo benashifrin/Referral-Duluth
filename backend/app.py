@@ -922,13 +922,39 @@ def track_referral_click(referral_code):
         session['referrer_id'] = referrer.id
         session['referrer_code'] = referral_code
         
-        # In a real app, you'd redirect to your signup page
+        # Build share/preview metadata
+        domain = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
+        if not domain.startswith('http'):
+            domain = f"https://{domain}"
+        if not domain.endswith('/'):
+            domain += '/'
+        share_url = f"{domain}ref/{referral_code}"
+        # Prefer a branded OG image if provided, else fall back to a QR image for the link
+        og_image = os.getenv('OG_IMAGE_URL', None)
+        if not og_image:
+            from urllib.parse import quote
+            og_image = f"https://api.qrserver.com/v1/create-qr-code/?size=600x600&data={quote(share_url)}"
+
+        # Serve a rich preview landing page with Open Graph metadata
         return f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>Welcome to Duluth Dental Center!</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <!-- Open Graph metadata for rich previews -->
+            <meta property="og:type" content="website" />
+            <meta property="og:title" content="You have got some smart friends — Duluth Dental Center" />
+            <meta property="og:description" content="You were referred to Duluth Dental Center. Share your info and call to schedule your first appointment. Earn rewards for referrals!" />
+            <meta property="og:url" content="{share_url}" />
+            <meta property="og:image" content="{og_image}" />
+            <meta property="og:image:alt" content="Duluth Dental Center referral" />
+
+            <!-- Twitter Card -->
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content="You have got some smart friends — Duluth Dental Center" />
+            <meta name="twitter:description" content="You were referred to Duluth Dental Center. Share your info and call to schedule your first appointment." />
+            <meta name="twitter:image" content="{og_image}" />
             <style>
                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 20px auto; padding: 20px; background: #f8fafc; }}
                 .container {{ background: linear-gradient(135deg, #0891b2 0%, #0f766e 100%); padding: 30px; border-radius: 15px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }}
@@ -947,6 +973,7 @@ def track_referral_click(referral_code):
             <div class="container">
                 <h1>🦷 Welcome to Duluth Dental Center!</h1>
                 <p style="font-size: 18px; margin: 20px 0;">You've been referred by one of our valued patients!</p>
+                <p style="font-size: 20px; font-weight: 700; margin: 10px 0; color: #fef08a;">You have got some smart friends!</p>
                 <p style="font-size: 16px; opacity: 0.9;">Experience quality dental care in Duluth</p>
             </div>
             

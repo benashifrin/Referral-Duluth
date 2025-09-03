@@ -235,12 +235,16 @@ const DemoPage = () => {
         }
 
         .scan-text {
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 1.1rem;
-          font-weight: 500;
+          color: #111111; /* black for visibility */
+          font-size: 1.15rem;
+          font-weight: 700;
           margin-top: 1.5rem;
-          text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
+          display: inline-block;
+          background: rgba(255, 255, 255, 0.92);
+          padding: 0.4rem 0.75rem;
+          border-radius: 9999px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         .demo-title {
