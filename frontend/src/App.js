@@ -20,7 +20,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/demo'];
+      const publicRoutes = ['/login', '/quote', '/qrcode'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
