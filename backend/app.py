@@ -1171,7 +1171,7 @@ def track_referral_click(referral_code):
                                         <h2 style="margin: 0 0 15px 0; font-size: 28px;">📞 Step 2: Call Us Now!</h2>
                                         <div style="font-size: 32px; font-weight: bold; margin: 15px 0; letter-spacing: 2px;">(770)-232-5255</div>
                                         <p style="font-size: 16px; margin: 15px 0; opacity: 0.9;">Speak with our scheduling team to book your appointment</p>
-                                        <a href="tel:+12187221000" style="background: #0f766e; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block; margin: 10px 0;">📞 Call Duluth Dental Center</a>
+                                        <a href="tel:+14048892305" style="background: #0f766e; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block; margin: 10px 0;">📞 Call Duluth Dental Center</a>
                                     </div>
                                     
                                     <div style="background: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; color: #374151;">
