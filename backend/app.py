@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 import re
+import json
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
@@ -717,7 +718,12 @@ def verify_otp():
         logger.info(f"[{request_id}] OTP VERIFY HEADERS: {dict(request.headers)}")
         logger.info(f"[{request_id}] OTP VERIFY RAW BODY (truncated): {raw_body}")
 
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
+            try:
+                data = json.loads(raw_body) if raw_body else {}
+            except Exception:
+                data = {}
         logger.info(f"[{request_id}] OTP VERIFY - Parsed JSON keys: {list(data.keys())}")
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
@@ -1167,7 +1173,12 @@ def signup_referral():
         logger.info(f"[{request_id}] SIGNUP HEADERS: {dict(request.headers)}")
         logger.info(f"[{request_id}] SIGNUP RAW BODY (truncated): {raw_body}")
 
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or not data:
+            try:
+                data = json.loads(raw_body) if raw_body else {}
+            except Exception:
+                data = {}
         logger.info(f"[{request_id}] SIGNUP - Parsed JSON keys: {list(data.keys())}")
         name = data.get('name', '').strip()
         phone = data.get('phone', '').strip()
