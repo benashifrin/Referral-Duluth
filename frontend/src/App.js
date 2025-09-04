@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import QuotePage from './pages/QuotePage';
 import DemoPage from './pages/DemoPage';
+import ScanPage from './pages/ScanPage';
 import './index.css';
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/qrcode'];
+      const publicRoutes = ['/login', '/quote', '/qrcode', '/scan'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
@@ -151,6 +152,12 @@ function App() {
             <Route 
               path="/qrcode" 
               element={<DemoPage />} 
+            />
+
+            {/* In-page Scanner (beeps only on detection) */}
+            <Route
+              path="/scan"
+              element={<ScanPage />}
             />
             
             {/* Catch all route */}
