@@ -1255,6 +1255,11 @@ def signup_referral():
         if not referrer:
             return jsonify({'error': 'Invalid referrer'}), 400
         
+        # New rule: referred email cannot already belong to a user in the system
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': 'This email already has an account and cannot be referred'}), 400
+        
         # Check if this email already has a referral from this referrer
         existing_referral = Referral.query.filter_by(
             referrer_id=referrer_id,
