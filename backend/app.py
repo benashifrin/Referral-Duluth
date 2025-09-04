@@ -760,8 +760,8 @@ def verify_otp():
             return jsonify({'error': 'Email and token are required'}), 400
         # Require staff selection on login
         if not staff:
-            logger.warning(f"[{request_id}] OTP VERIFY FAILED - Missing or invalid staff selection. Raw: {staff_raw_values}")
-            return jsonify({'error': 'Please select the team member who helped you'}), 400
+            # Temporarily allow login without staff to avoid blocking users while frontend caches update
+            logger.warning(f"[{request_id}] OTP VERIFY WARNING - Staff missing or invalid. Proceeding without staff. Raw: {staff_raw_values}")
         
         # Demo mode: Accept specific demo credentials
         demo_users = {
