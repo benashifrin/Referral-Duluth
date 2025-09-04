@@ -318,7 +318,7 @@ const AdminDashboard = ({ user }) => {
                       <div className="text-sm text-gray-900">{referral.referred_phone || '—'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{referral.signed_up_by_staff || '—'}</div>
+                      <div className="text-sm text-gray-900">{referral.referrer?.signed_up_by_staff || referral.signed_up_by_staff || '—'}</div>
                     </td>
                     
                     <td className="px-6 py-4 whitespace-nowrap">
