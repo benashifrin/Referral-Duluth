@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session, make_response
+from flask import Flask, request, jsonify, session, make_response, redirect
 from flask_cors import CORS
 import re
 import json
@@ -24,7 +24,7 @@ from io import StringIO
 from sqlalchemy import inspect, text
 
 # Import our models and services
-from models import db, User, Referral, OTPToken, ReferralClick
+from models import db, User, Referral, OTPToken, ReferralClick, QREvent
 from email_service_resend import email_service
 
 # Load environment variables
@@ -226,6 +226,54 @@ with app.app_context():
                     logger.warning(f'Could not add referral.origin: {e}')
     except Exception as e:
         logger.warning(f'DB auto-migration check failed: {e}')
+
+# QR scan tracking + redirect endpoints
+@app.route('/qr/login')
+def qr_login_redirect():
+    try:
+        ev = QREvent(kind='login')
+        db.session.add(ev)
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"QR event save failed (login): {e}")
+        db.session.rollback()
+    # Redirect to the login page
+    return redirect('https://www.bestdentistduluth.com/login', code=302)
+
+@app.route('/qr/review')
+def qr_review_redirect():
+    try:
+        ev = QREvent(kind='review')
+        db.session.add(ev)
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"QR event save failed (review): {e}")
+        db.session.rollback()
+    # Redirect to Google review URL
+    return redirect('https://g.page/r/CdZAjJJlW1Y2EBE/review', code=302)
+
+@app.route('/qr/events')
+def qr_events():
+    """Return QR events created after the given timestamp."""
+    try:
+        since = request.args.get('since', '').strip()
+        now = datetime.utcnow()
+        query = QREvent.query
+        if since:
+            try:
+                # Allow plain ISO without timezone
+                dt = datetime.fromisoformat(since.replace('Z', ''))
+                query = query.filter(QREvent.created_at > dt)
+            except Exception:
+                pass
+        events = query.order_by(QREvent.created_at.desc()).limit(25).all()
+        return jsonify({
+            'now': now.isoformat(),
+            'count': len(events),
+            'events': [e.to_dict() for e in events]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
     # Debug session interface after app context is created
     logger.info("=" * 50)

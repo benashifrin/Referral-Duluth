@@ -186,3 +186,16 @@ class ReferralClick(db.Model):
             'user_agent': self.user_agent,
             'clicked_at': self.clicked_at.isoformat()
         }
+
+class QREvent(db.Model):
+    """Record of QR code scans (by hitting our redirect endpoints)."""
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False)  # e.g., 'login', 'review'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'kind': self.kind,
+            'created_at': self.created_at.isoformat(),
+        }

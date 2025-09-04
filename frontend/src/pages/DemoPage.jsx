@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { API_URL } from '../services/api';
 
 const DemoPage = () => {
   const styles = `
@@ -300,12 +301,33 @@ const DemoPage = () => {
     setUnlocked(true);
   };
 
+  // Poll for QR scan events only when unlocked; ding ONLY on detection
   useEffect(() => {
-    const tryAuto = async () => { if (unlocked) await ding(); };
-    tryAuto();
-    const onShow = () => { if (unlocked) ding(); };
-    window.addEventListener('pageshow', onShow);
-    return () => window.removeEventListener('pageshow', onShow);
+    if (!unlocked) return;
+    let alive = true;
+    let timer = null;
+    let since = new Date().toISOString();
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/qr/events?since=${encodeURIComponent(since)}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (!alive) return;
+        if (data && Array.isArray(data.events) && data.events.length > 0) {
+          // Play one ding per batch of new events
+          await ding();
+        }
+        if (data && data.now) since = data.now; // advance cursor
+      } catch (e) {
+        // ignore network errors; retry next tick
+      } finally {
+        if (alive) timer = setTimeout(poll, 2000);
+      }
+    };
+    poll();
+    return () => { alive = false; if (timer) clearTimeout(timer); };
   }, [unlocked]);
 
   return (
@@ -332,7 +354,7 @@ const DemoPage = () => {
               <div className="qr-container">
                 <div className="qr-glow"></div>
                 <img
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fwww.bestdentistduluth.com%2Flogin&color=2c3e50&bgcolor=ffffff"
+                  src={`${API_URL}/qr/login`}
                   alt="QR Code for BestDentistDuluth.com Login"
                   className="qr-code"
                 />
@@ -345,7 +367,7 @@ const DemoPage = () => {
               <div className="qr-container">
                 <div className="qr-glow"></div>
                 <img
-                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fg.page%2Fr%2FCdZAjJJlW1Y2EBE%2Freview&color=2c3e50&bgcolor=ffffff"
+                  src={`${API_URL}/qr/review`}
                   alt="QR Code to leave a Google review"
                   className="qr-code"
                 />
