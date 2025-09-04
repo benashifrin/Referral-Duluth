@@ -21,6 +21,7 @@ except ImportError:
         pass
 import csv
 from io import StringIO
+from sqlalchemy import inspect, text
 
 # Import our models and services
 from models import db, User, Referral, OTPToken, ReferralClick
@@ -191,6 +192,40 @@ def after_request(response):
 # Create database tables
 with app.app_context():
     db.create_all()
+    # Ensure new columns exist in production DBs without manual migrations
+    try:
+        insp = inspect(db.engine)
+        # Add User.signed_up_by_staff if missing
+        if 'user' in insp.get_table_names():
+            user_cols = {c['name'] for c in insp.get_columns('user')}
+            if 'signed_up_by_staff' not in user_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN signed_up_by_staff VARCHAR(50)'))
+                    db.session.commit()
+                    logger.info('Added column user.signed_up_by_staff')
+                except Exception as e:
+                    logger.warning(f'Could not add user.signed_up_by_staff: {e}')
+
+        # Add Referral.signed_up_by_staff and Referral.origin if missing
+        if 'referral' in insp.get_table_names():
+            ref_cols = {c['name'] for c in insp.get_columns('referral')}
+            if 'signed_up_by_staff' not in ref_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE referral ADD COLUMN signed_up_by_staff VARCHAR(50)'))
+                    db.session.commit()
+                    logger.info('Added column referral.signed_up_by_staff')
+                except Exception as e:
+                    logger.warning(f'Could not add referral.signed_up_by_staff: {e}')
+            if 'origin' not in ref_cols:
+                try:
+                    # DEFAULT 'link' for Postgres; SQLite ignores DEFAULT if unsupported
+                    db.session.execute(text("ALTER TABLE referral ADD COLUMN origin VARCHAR(20) DEFAULT 'link'"))
+                    db.session.commit()
+                    logger.info('Added column referral.origin')
+                except Exception as e:
+                    logger.warning(f'Could not add referral.origin: {e}')
+    except Exception as e:
+        logger.warning(f'DB auto-migration check failed: {e}')
     
     # Debug session interface after app context is created
     logger.info("=" * 50)
