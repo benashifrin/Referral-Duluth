@@ -373,8 +373,7 @@ const DemoPage = () => {
                 />
               </div>
               <p className="scan-text" style={{maxWidth:'28rem', margin:'0.75rem auto 0'}}>
-                <strong>Refer a Friend!</strong> When they join as a patient, you'll earn
-                $50 credit toward your next visit.
+                <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
               </p>
             </div>
 
