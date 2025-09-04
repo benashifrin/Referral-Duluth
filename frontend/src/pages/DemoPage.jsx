@@ -234,12 +234,18 @@ const DemoPage = () => {
 
         .scan-text {
           color: #111111; /* black text as requested */
-          font-size: 1.05rem;
+          font-size: 2.1rem; /* doubled */
           font-weight: 700;
           margin-top: 0.75rem; /* closer to QR */
           letter-spacing: 0.3px;
           display: block; /* ensure always under the QR */
           text-shadow: 0 2px 6px rgba(255,255,255,0.6); /* subtle pop without large white pill */
+        }
+
+        /* Make the enable-sound button text larger on this page only */
+        .demo-content .btn-primary {
+          font-size: 2rem;
+          padding: 20px 28px;
         }
 
         .demo-title {
@@ -400,7 +406,7 @@ const DemoPage = () => {
               <button onClick={enableSound} className="btn-primary">
                 Enable Sound
               </button>
-              <div style={{marginTop:'8px', fontSize:'12px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
+              <div style={{marginTop:'8px', fontSize:'24px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
             </div>
           )}
         </div>
