@@ -147,9 +147,9 @@ function App() {
               element={<QuotePage />} 
             />
 
-            {/* Public demo page */}
+            {/* QR Code page */}
             <Route 
-              path="/demo" 
+              path="/qrcode" 
               element={<DemoPage />} 
             />
             

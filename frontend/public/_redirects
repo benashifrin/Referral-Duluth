@@ -3,3 +3,6 @@
 
 # SPA fallback for all other routes
 /*    /index.html   200
+
+# Redirect old demo route to new qrcode route
+/demo   /qrcode   301

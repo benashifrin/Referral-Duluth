@@ -271,16 +271,34 @@ const DemoPage = () => {
       </div>
 
       <div className="demo-content">
-        <div className="demo-card">
-          <div className="qr-container">
-            <div className="qr-glow"></div>
-            <img 
-              src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fwww.bestdentistduluth.com%2Flogin&color=2c3e50&bgcolor=ffffff" 
-              alt="QR Code for BestDentistDuluth.com Login"
-              className="qr-code" 
-            />
+        <div className="demo-card" style={{maxWidth: 'unset'}}>
+          <div style={{display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center'}}>
+            {/* Rewards QR */}
+            <div style={{textAlign: 'center'}}>
+              <div className="qr-container">
+                <div className="qr-glow"></div>
+                <img
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fwww.bestdentistduluth.com%2Flogin&color=2c3e50&bgcolor=ffffff"
+                  alt="QR Code for BestDentistDuluth.com Login"
+                  className="qr-code"
+                />
+              </div>
+              <p className="scan-text">Scan to enter rewards program</p>
+            </div>
+
+            {/* Google Review QR */}
+            <div style={{textAlign: 'center'}}>
+              <div className="qr-container">
+                <div className="qr-glow"></div>
+                <img
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https%3A%2F%2Fg.page%2Fr%2FCdZAjJJlW1Y2EBE%2Freview&color=2c3e50&bgcolor=ffffff"
+                  alt="QR Code to leave a Google review"
+                  className="qr-code"
+                />
+              </div>
+              <p className="scan-text">Leave us a review</p>
+            </div>
           </div>
-          <p className="scan-text">Scan to enter rewards program</p>
         </div>
       </div>
     </>

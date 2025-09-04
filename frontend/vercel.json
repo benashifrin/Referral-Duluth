@@ -1,6 +1,11 @@
 {
   "redirects": [
     {
+      "source": "/demo",
+      "destination": "/qrcode",
+      "statusCode": 301
+    },
+    {
       "source": "/ref/:code",
       "destination": "https://api.bestdentistduluth.com/ref/:code",
       "statusCode": 302
