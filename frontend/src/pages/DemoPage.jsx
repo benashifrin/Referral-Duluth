@@ -8,8 +8,9 @@ const DemoPage = () => {
           left: 0;
           width: 100vw;
           height: 100vh;
-          z-index: -1;
+          z-index: 0; /* above body background */
           overflow: hidden;
+          pointer-events: none; /* don't block interactions */
           /* Blue background gradient */
           background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
         }
