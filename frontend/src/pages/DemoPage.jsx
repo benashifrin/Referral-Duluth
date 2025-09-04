@@ -372,7 +372,10 @@ const DemoPage = () => {
                   className="qr-code"
                 />
               </div>
-              <p className="scan-text">Scan to enter rewards program</p>
+              <p className="scan-text" style={{maxWidth:'28rem', margin:'0.75rem auto 0'}}>
+                <strong>Refer a Friend!</strong> When they join as a patient, you'll earn
+                $50 credit toward your next visit.
+              </p>
             </div>
 
             {/* Google Review QR */}
@@ -385,7 +388,9 @@ const DemoPage = () => {
                   className="qr-code"
                 />
               </div>
-              <p className="scan-text">Leave us a review</p>
+              <p className="scan-text" style={{maxWidth:'28rem', margin:'0.75rem auto 0'}}>
+                <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
+              </p>
             </div>
           </div>
 
