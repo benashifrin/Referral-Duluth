@@ -807,6 +807,13 @@ def verify_otp():
         
         # Capture staff member selection for later referral attribution
         session['signup_staff'] = staff
+        # Persist on user record if not already set
+        try:
+            if staff and not getattr(user, 'signed_up_by_staff', None):
+                user.signed_up_by_staff = staff
+                db.session.commit()
+        except Exception as _e:
+            logger.warning(f"[{request_id}] OTP VERIFY - Failed to persist user staff: {str(_e)}")
         logger.info(f"[{request_id}] OTP VERIFY - Captured staff selection in session: {staff}")
 
         # Set session with mobile browser compatibility
@@ -1285,6 +1292,7 @@ def admin_list_users(user):
                 'stats': u.get_referral_stats(),
                 'total_earnings': u.total_earnings,
                 'created_at': u.created_at.isoformat(),
+                'signed_up_by_staff': getattr(u, 'signed_up_by_staff', None),
             })
 
         return jsonify({
@@ -1543,6 +1551,55 @@ def get_admin_stats(user):
         
     except Exception as e:
         print(f"Error getting admin stats: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/user/<int:user_id>', methods=['DELETE'])
+@require_admin()
+def admin_delete_user(user, user_id):
+    """Delete a user and all their referral data. Reverse earnings from completed referrals."""
+    try:
+        target = User.query.get_or_404(user_id)
+
+        # Do not allow deleting self by accident (optional safeguard)
+        # if target.id == user.id:
+        #     return jsonify({'error': 'Cannot delete currently logged-in admin user'}), 400
+
+        # Reverse earnings and delete referrals made by this user
+        referrals = target.referrals_made.all()
+        reversed_earnings = 0.0
+        completed_removed = 0
+        signed_removed = 0
+        for r in referrals:
+            if r.status == 'completed' and r.earnings:
+                target.total_earnings = max(0.0, (target.total_earnings or 0.0) - r.earnings)
+                reversed_earnings += r.earnings
+                completed_removed += 1
+            elif r.status == 'signed_up':
+                signed_removed += 1
+            db.session.delete(r)
+
+        # Delete referral clicks for this user
+        clicks = ReferralClick.query.filter_by(referrer_id=target.id).all()
+        clicks_removed = len(clicks)
+        for c in clicks:
+            db.session.delete(c)
+
+        db.session.delete(target)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'User deleted',
+            'user_id': user_id,
+            'removed': {
+                'referrals_completed': completed_removed,
+                'referrals_signed_up': signed_removed,
+                'referral_clicks': clicks_removed
+            },
+            'reversed_earnings': reversed_earnings
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting user: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 # Error handlers

@@ -78,8 +78,10 @@ export const authAPI = {
     return response.data;
   },
   
-  verifyOTP: async (email, token) => {
-    const response = await api.post('/auth/verify-otp', { email, token });
+  verifyOTP: async (email, token, staff) => {
+    const payload = { email, token };
+    if (staff) payload.staff = staff;
+    const response = await api.post('/auth/verify-otp', payload);
     return response.data;
   },
   
@@ -129,6 +131,10 @@ export const adminAPI = {
     if (typeof completed === 'number') payload.completed = completed;
     if (typeof signed_up === 'number') payload.signed_up = signed_up;
     const response = await api.put(`/admin/user/${userId}/referrals`, payload);
+    return response.data;
+  },
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/admin/user/${userId}`);
     return response.data;
   },
   getAllReferrals: async (page = 1, perPage = 20, status = '') => {

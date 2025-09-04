@@ -13,6 +13,7 @@ class User(db.Model):
     total_earnings = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
+    signed_up_by_staff = db.Column(db.String(50), nullable=True)
     
     # Relationship to referrals made by this user
     referrals_made = db.relationship('Referral', foreign_keys='Referral.referrer_id', backref='referrer', lazy='dynamic')
@@ -75,7 +76,8 @@ class User(db.Model):
             'referral_code': self.referral_code,
             'total_earnings': self.total_earnings,
             'created_at': self.created_at.isoformat(),
-            'is_admin': self.is_admin
+            'is_admin': self.is_admin,
+            'signed_up_by_staff': self.signed_up_by_staff
         }
 
 class Referral(db.Model):

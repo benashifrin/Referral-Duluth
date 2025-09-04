@@ -30,6 +30,7 @@ const AdminDashboard = ({ user }) => {
   const [usersPage, setUsersPage] = useState(1);
   const [usersPages, setUsersPages] = useState(1);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [deletingUserId, setDeletingUserId] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   const loadStats = async () => {
@@ -150,6 +151,20 @@ const AdminDashboard = ({ user }) => {
       toast.success('Updated completed referrals');
     } catch (error) {
       toast.error(handleAPIError(error));
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    if (!window.confirm(`Delete user ${u.email}? This will remove their referrals and reverse any earnings.`)) return;
+    setDeletingUserId(u.id);
+    try {
+      await adminAPI.deleteUser(u.id);
+      await Promise.all([loadStats(), loadUsers(usersPage)]);
+      toast.success('User deleted');
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -444,9 +459,11 @@ const AdminDashboard = ({ user }) => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Earnings</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -454,6 +471,7 @@ const AdminDashboard = ({ user }) => {
                   <tr key={u.id}>
                     <td className="px-6 py-4 text-sm text-gray-900">{u.email}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.referral_code}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{u.signed_up_by_staff || '—'}</td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center space-x-2">
                         <button onClick={() => handleUserCompletedAdjust(u, u.stats.completed_referrals - 1)} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">-</button>
@@ -476,6 +494,17 @@ const AdminDashboard = ({ user }) => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{u.stats.total_referrals}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{formatCurrency(u.total_earnings)}</td>
+                    <td className="px-6 py-4 text-sm text-right">
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        disabled={deletingUserId === u.id}
+                        title="Delete user"
+                      >
+                        <Trash className="h-3 w-3 mr-1" />
+                        {deletingUserId === u.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
