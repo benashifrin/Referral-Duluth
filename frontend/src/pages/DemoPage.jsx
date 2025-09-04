@@ -266,7 +266,13 @@ const DemoPage = () => {
 
       <div className="demo-content">
         <div className="demo-card" style={{maxWidth: 'unset'}}>
-          <div style={{display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center'}}>
+          <div style={{
+            display: 'flex',
+            gap: '96px', /* increase spacing between QR codes */
+            flexWrap: 'wrap',
+            justifyContent: 'center', /* center horizontally */
+            alignItems: 'center',     /* center vertically within the row */
+          }}>
             {/* Rewards QR */}
             <div style={{textAlign: 'center'}}>
               <div className="qr-container">
