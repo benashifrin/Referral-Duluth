@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const DemoPage = () => {
   const styles = `
@@ -254,6 +254,60 @@ const DemoPage = () => {
         }
       `;
 
+  // Option A: One-time sound enable, then auto-ding on visit
+  const [unlocked, setUnlocked] = useState(false);
+  const audioRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const KEY = 'qrSoundUnlocked';
+
+  useEffect(() => {
+    try { setUnlocked(localStorage.getItem(KEY) === '1'); } catch {}
+  }, []);
+
+  const beepFallback = () => {
+    try {
+      audioCtxRef.current = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.20);
+      o.start(); o.stop(ctx.currentTime + 0.22);
+    } catch {}
+  };
+
+  const ding = async () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play();
+        return true;
+      }
+    } catch {}
+    // Fallback beep if media is blocked or missing
+    beepFallback();
+    return true;
+  };
+
+  const enableSound = async () => {
+    await ding();
+    try { localStorage.setItem(KEY, '1'); } catch {}
+    setUnlocked(true);
+  };
+
+  useEffect(() => {
+    const tryAuto = async () => { if (unlocked) await ding(); };
+    tryAuto();
+    const onShow = () => { if (unlocked) ding(); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, [unlocked]);
+
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: styles}} />
@@ -299,6 +353,17 @@ const DemoPage = () => {
               <p className="scan-text">Leave us a review</p>
             </div>
           </div>
+
+          {/* Hidden audio element and enable button */}
+          <audio ref={audioRef} src="/ding.mp3" preload="auto" playsInline style={{display:'none'}} />
+          {!unlocked && (
+            <div style={{marginTop: '24px'}}>
+              <button onClick={enableSound} className="btn-primary">
+                Enable Sound
+              </button>
+              <div style={{marginTop:'8px', fontSize:'12px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
+            </div>
+          )}
         </div>
       </div>
     </>
