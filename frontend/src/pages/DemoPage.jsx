@@ -165,15 +165,14 @@ const DemoPage = () => {
         }
 
         .demo-card {
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(20px);
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-radius: 30px;
-          padding: 3rem;
-          max-width: 400px;
-          margin: 2rem 0;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-          animation: float 6s ease-in-out infinite;
+          background: transparent; /* Let the blue gradient show through */
+          border: none;
+          border-radius: 24px;
+          padding: 1.5rem; /* tighter padding so QR dominates */
+          max-width: 100%;
+          margin: 1rem 0;
+          box-shadow: none;
+          animation: none;
         }
 
         @keyframes float {
@@ -187,16 +186,13 @@ const DemoPage = () => {
         }
 
         .qr-code {
-          width: 280px;
-          height: 280px;
-          border-radius: 25px;
-          box-shadow: 
-            0 15px 40px rgba(0,0,0,0.4),
-            0 5px 20px rgba(0,0,0,0.2),
-            inset 0 2px 10px rgba(255,255,255,0.1);
+          width: 250px;
+          height: 250px;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25);
           transition: all 0.3s ease;
-          background: white;
-          padding: 15px;
+          background: white; /* keep small white margin for scanner contrast */
+          padding: 8px; /* smaller white box behind the QR */
         }
 
         .qr-code:hover {
@@ -235,16 +231,13 @@ const DemoPage = () => {
         }
 
         .scan-text {
-          color: #111111; /* black for visibility */
-          font-size: 1.15rem;
+          color: #111111; /* black text as requested */
+          font-size: 1.05rem;
           font-weight: 700;
-          margin-top: 1.5rem;
+          margin-top: 0.75rem; /* closer to QR */
           letter-spacing: 0.3px;
-          display: inline-block;
-          background: rgba(255, 255, 255, 0.92);
-          padding: 0.4rem 0.75rem;
-          border-radius: 9999px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          display: block; /* ensure always under the QR */
+          text-shadow: 0 2px 6px rgba(255,255,255,0.6); /* subtle pop without large white pill */
         }
 
         .demo-title {
