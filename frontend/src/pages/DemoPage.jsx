@@ -355,7 +355,7 @@ const DemoPage = () => {
           </div>
 
           {/* Hidden audio element and enable button */}
-          <audio ref={audioRef} src="/ding.mp3" preload="auto" playsInline style={{display:'none'}} />
+          <audio ref={audioRef} src="/ding.wav" preload="auto" playsInline style={{display:'none'}} />
           {!unlocked && (
             <div style={{marginTop: '24px'}}>
               <button onClick={enableSound} className="btn-primary">
