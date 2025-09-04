@@ -1169,7 +1169,7 @@ def track_referral_click(referral_code):
                                     
                                     <div style="background: #0891b2; color: white; padding: 30px; border-radius: 15px; margin: 20px 0;">
                                         <h2 style="margin: 0 0 15px 0; font-size: 28px;">📞 Step 2: Call Us Now!</h2>
-                                        <div style="font-size: 32px; font-weight: bold; margin: 15px 0; letter-spacing: 2px;">(218) 722-1000</div>
+                                        <div style="font-size: 32px; font-weight: bold; margin: 15px 0; letter-spacing: 2px;">(770)-232-5255</div>
                                         <p style="font-size: 16px; margin: 15px 0; opacity: 0.9;">Speak with our scheduling team to book your appointment</p>
                                         <a href="tel:+12187221000" style="background: #0f766e; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block; margin: 10px 0;">📞 Call Duluth Dental Center</a>
                                     </div>
@@ -1182,12 +1182,12 @@ def track_referral_click(referral_code):
                                 </div>
                             `;
                         }} else {{
-                            alert(result.error || 'An error occurred. Please try again or call us at (218) 722-1000');
+                            alert(result.error || 'An error occurred. Please try again or call us at (770)-232-5255');
                             submitButton.textContent = originalText;
                             submitButton.disabled = false;
                         }}
                     }} catch (error) {{
-                        alert('Network error. Please try again or call us at (218) 722-1000');
+                        alert('Network error. Please try again or call us at (770)-232-5255');
                         submitButton.textContent = originalText;
                         submitButton.disabled = false;
                     }}
