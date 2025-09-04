@@ -710,7 +710,8 @@ def verify_otp():
     try:
         # Log raw headers and body for debugging
         try:
-            raw_body = request.get_data(cache=False, as_text=True)[:1000]
+            # Use cache=True so subsequent get_json() can still parse the body
+            raw_body = request.get_data(cache=True, as_text=True)[:1000]
         except Exception:
             raw_body = '<unavailable>'
         logger.info(f"[{request_id}] OTP VERIFY HEADERS: {dict(request.headers)}")
@@ -1159,7 +1160,8 @@ def signup_referral():
         request_id = getattr(request, 'id', 'unknown')
         # Debug raw body and headers to diagnose staff attribution issues
         try:
-            raw_body = request.get_data(cache=False, as_text=True)[:1000]
+            # Use cache=True so subsequent get_json() can still parse the body
+            raw_body = request.get_data(cache=True, as_text=True)[:1000]
         except Exception:
             raw_body = '<unavailable>'
         logger.info(f"[{request_id}] SIGNUP HEADERS: {dict(request.headers)}")
