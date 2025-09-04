@@ -818,10 +818,14 @@ def send_otp():
             logger.info(f"[{request_id}] OTP EMAIL RESULT - Success: {success}")
             
             if success:
+                # Include hint whether this email already has a staff member on file
+                existing_user = User.query.filter_by(email=email).first()
+                has_staff = bool(existing_user and getattr(existing_user, 'signed_up_by_staff', None))
                 return jsonify({
                     'message': 'OTP sent to your email',
                     'email': email,
-                    'expires_in': 600  # 10 minutes in seconds
+                    'expires_in': 600,  # 10 minutes in seconds
+                    'has_staff': has_staff
                 })
             else:
                 return jsonify({'error': 'Failed to send OTP. Please try again.'}), 500
@@ -937,16 +941,20 @@ def verify_otp():
             logger.info(f"[{request_id}] MOBILE CRITICAL - Session before setup: {list(session.keys())}")
             logger.info(f"[{request_id}] MOBILE CRITICAL - User object ready: {user.id} - {user.email}")
         
-        # Capture staff member selection for later referral attribution
-        session['signup_staff'] = staff
-        # Persist on user record if not already set
-        try:
-            if staff and not getattr(user, 'signed_up_by_staff', None):
-                user.signed_up_by_staff = staff
-                db.session.commit()
-        except Exception as _e:
-            logger.warning(f"[{request_id}] OTP VERIFY - Failed to persist user staff: {str(_e)}")
-        logger.info(f"[{request_id}] OTP VERIFY - Captured staff selection in session: {staff}")
+        # Resolve staff member: use provided, or fallback to user's saved value if present
+        resolved_staff = staff
+        if not resolved_staff and getattr(user, 'signed_up_by_staff', None):
+            resolved_staff = user.signed_up_by_staff
+        if resolved_staff:
+            session['signup_staff'] = resolved_staff
+            # Persist on user record if not already set
+            try:
+                if not getattr(user, 'signed_up_by_staff', None):
+                    user.signed_up_by_staff = resolved_staff
+                    db.session.commit()
+            except Exception as _e:
+                logger.warning(f"[{request_id}] OTP VERIFY - Failed to persist user staff: {str(_e)}")
+            logger.info(f"[{request_id}] OTP VERIFY - Staff in session: {resolved_staff}")
 
         # Set session with mobile browser compatibility
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
