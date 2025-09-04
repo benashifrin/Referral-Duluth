@@ -363,10 +363,10 @@ const DemoPage = () => {
         <div className="demo-card" style={{maxWidth: 'unset'}}>
           <div style={{
             display: 'flex',
-            gap: '96px', /* increase spacing between QR codes */
-            flexWrap: 'wrap',
-            justifyContent: 'center', /* center horizontally */
-            alignItems: 'center',     /* center vertically within the row */
+            gap: '64px', /* spacing between QR codes (fits iPad width) */
+            flexWrap: 'nowrap', /* keep horizontal on iPad */
+            justifyContent: 'center',
+            alignItems: 'center',
           }}>
             {/* Rewards QR */}
             <div style={{textAlign: 'center'}}>
@@ -378,7 +378,7 @@ const DemoPage = () => {
                   className="qr-code"
                 />
               </div>
-              <p className="scan-text" style={{maxWidth:'28rem', margin:'0.75rem auto 0'}}>
+              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
                 <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
               </p>
             </div>
@@ -393,7 +393,7 @@ const DemoPage = () => {
                   className="qr-code"
                 />
               </div>
-              <p className="scan-text" style={{maxWidth:'28rem', margin:'0.75rem auto 0'}}>
+              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
                 <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
               </p>
             </div>
