@@ -63,7 +63,7 @@ If you prefer to set up services manually:
 After deployment, you can use these demo credentials:
 
 **Regular User:**
-- Email: `demo@example.com`
+- Email: `demo@duluthdentalcenter.com`
 - OTP: `123456`
 
 **Admin User:**

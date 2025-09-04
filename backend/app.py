@@ -800,7 +800,7 @@ def verify_otp():
         
         # Demo mode: Accept specific demo credentials
         demo_users = {
-            'demo@example.com': '123456',
+            'demo@duluthdentalcenter.com': '123456',
             'admin@dentaloffice.com': '123456',
             'user@demo.com': '123456'
         }

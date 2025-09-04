@@ -21,7 +21,7 @@ def test_otp_email():
     print()
     
     # Test email address - using demo email for automated testing
-    test_email = "demo@example.com"
+    test_email = "demo@duluthdentalcenter.com"
     print(f"Testing with email: {test_email}")
     
     # Send test OTP
@@ -39,7 +39,7 @@ def test_referral_notification():
     """Test sending referral notification email"""
     print("\nTesting referral notification email...")
     
-    test_email = "demo@example.com"
+    test_email = "demo@duluthdentalcenter.com"
     print(f"Testing referral notification with email: {test_email}")
     
     # Send test referral notification
