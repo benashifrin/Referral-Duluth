@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify, session, make_response, redirect
+from flask import Flask, request, jsonify, session, make_response, redirect, Response, stream_with_context
 from flask_cors import CORS
 import re
 import json
+from queue import Queue
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
@@ -227,6 +228,19 @@ with app.app_context():
     except Exception as e:
         logger.warning(f'DB auto-migration check failed: {e}')
 
+# SSE subscribers for immediate QR notifications
+sse_clients = []  # list[Queue]
+
+def sse_broadcast(message: dict):
+    try:
+        for q in list(sse_clients):
+            try:
+                q.put_nowait(message)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
 # QR scan tracking + redirect endpoints
 @app.route('/qr/login')
 def qr_login_redirect():
@@ -234,6 +248,7 @@ def qr_login_redirect():
         ev = QREvent(kind='login')
         db.session.add(ev)
         db.session.commit()
+        sse_broadcast({'kind': 'login', 'created_at': ev.created_at.isoformat()})
     except Exception as e:
         logger.warning(f"QR event save failed (login): {e}")
         db.session.rollback()
@@ -246,6 +261,7 @@ def qr_review_redirect():
         ev = QREvent(kind='review')
         db.session.add(ev)
         db.session.commit()
+        sse_broadcast({'kind': 'review', 'created_at': ev.created_at.isoformat()})
     except Exception as e:
         logger.warning(f"QR event save failed (review): {e}")
         db.session.rollback()
@@ -274,6 +290,39 @@ def qr_events():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/qr/stream')
+def qr_stream():
+    """Server-Sent Events stream for immediate QR notifications."""
+    q = Queue()
+    sse_clients.append(q)
+
+    @stream_with_context
+    def event_stream():
+        try:
+            # Initial comment to open stream
+            yield ': ok\n\n'
+            while True:
+                msg = q.get()
+                payload = json.dumps(msg)
+                yield f'data: {payload}\n\n'
+        except GeneratorExit:
+            pass
+        finally:
+            try:
+                sse_clients.remove(q)
+            except ValueError:
+                pass
+
+    resp = Response(event_stream(), mimetype='text/event-stream')
+    # Allow CORS for EventSource
+    origin = request.headers.get('Origin')
+    if origin and is_allowed_origin(origin):
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers.add('Vary', 'Origin')
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['X-Accel-Buffering'] = 'no'  # nginx proxies
+    return resp
     
     # Debug session interface after app context is created
     logger.info("=" * 50)

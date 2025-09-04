@@ -301,33 +301,46 @@ const DemoPage = () => {
     setUnlocked(true);
   };
 
-  // Poll for QR scan events only when unlocked; ding ONLY on detection
+  // Subscribe to immediate QR events via Server-Sent Events; fallback to polling on error
   useEffect(() => {
     if (!unlocked) return;
-    let alive = true;
-    let timer = null;
-    let since = new Date().toISOString();
-    const poll = async () => {
-      try {
-        const res = await fetch(`${API_URL}/qr/events?since=${encodeURIComponent(since)}`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        const data = await res.json();
-        if (!alive) return;
-        if (data && Array.isArray(data.events) && data.events.length > 0) {
-          // Play one ding per batch of new events
-          await ding();
-        }
-        if (data && data.now) since = data.now; // advance cursor
-      } catch (e) {
-        // ignore network errors; retry next tick
-      } finally {
-        if (alive) timer = setTimeout(poll, 2000);
-      }
+    let es;
+    let fallbackTimer = null;
+
+    const startPolling = () => {
+      let since = new Date().toISOString();
+      const poll = async () => {
+        try {
+          const res = await fetch(`${API_URL}/qr/events?since=${encodeURIComponent(since)}`);
+          const data = await res.json();
+          if (data && Array.isArray(data.events) && data.events.length > 0) {
+            await ding();
+          }
+          if (data && data.now) since = data.now;
+        } catch {}
+        fallbackTimer = setTimeout(poll, 1500);
+      };
+      poll();
     };
-    poll();
-    return () => { alive = false; if (timer) clearTimeout(timer); };
+
+    try {
+      es = new EventSource(`${API_URL}/qr/stream`);
+      es.onmessage = async (evt) => {
+        try { JSON.parse(evt.data); } catch {}
+        await ding();
+      };
+      es.onerror = () => {
+        try { es.close(); } catch {}
+        if (!fallbackTimer) startPolling();
+      };
+    } catch (e) {
+      startPolling();
+    }
+
+    return () => {
+      try { es && es.close(); } catch {}
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
   }, [unlocked]);
 
   return (
@@ -354,7 +367,7 @@ const DemoPage = () => {
               <div className="qr-container">
                 <div className="qr-glow"></div>
                 <img
-                  src={`${API_URL}/qr/login`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/login`)}`}
                   alt="QR Code for BestDentistDuluth.com Login"
                   className="qr-code"
                 />
@@ -367,7 +380,7 @@ const DemoPage = () => {
               <div className="qr-container">
                 <div className="qr-glow"></div>
                 <img
-                  src={`${API_URL}/qr/review`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/review`)}`}
                   alt="QR Code to leave a Google review"
                   className="qr-code"
                 />
