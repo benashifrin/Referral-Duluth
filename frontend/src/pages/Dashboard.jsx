@@ -115,6 +115,7 @@ const Dashboard = ({ user }) => {
               current={stats.annual_earnings} 
               maximum={500} 
               className="mb-4"
+              whiteOnDark
             />
             <div className="text-center">
               <p className="text-primary-100 text-sm sm:text-base">
