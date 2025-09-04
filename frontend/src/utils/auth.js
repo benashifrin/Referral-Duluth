@@ -19,6 +19,7 @@ export const formatDate = (dateString) => {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'America/New_York',
   }).format(date);
 };
 
@@ -30,6 +31,7 @@ export const formatDateTime = (dateString) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/New_York',
   }).format(date);
 };
 

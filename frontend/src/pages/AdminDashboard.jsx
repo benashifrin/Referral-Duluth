@@ -468,6 +468,7 @@ const AdminDashboard = ({ user }) => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Signed Up</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Earnings</th>
@@ -480,6 +481,28 @@ const AdminDashboard = ({ user }) => {
                     <td className="px-6 py-4 text-sm text-gray-900">{u.email}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.referral_code}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{u.signed_up_by_staff || '—'}</td>
+                    <td className="px-6 py-4">
+                      <div className="inline-flex items-center space-x-2">
+                        <button onClick={() => adminAPI.updateUserReferrals(u.id, { signed_up: Math.max(0, u.stats.signed_up_referrals - 1) }).then(() => loadUsers(usersPage)).catch(err => toast.error(handleAPIError(err)))} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">-</button>
+                        <input
+                          type="number"
+                          className="w-20 input-field"
+                          value={u.stats.signed_up_referrals}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value || '0', 10);
+                            setUsers(prev => prev.map(item => item.id === u.id ? { ...item, stats: { ...item.stats, signed_up_referrals: isNaN(val) ? 0 : val } } : item));
+                          }}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value || '0', 10);
+                            adminAPI.updateUserReferrals(u.id, { signed_up: isNaN(val) ? 0 : val })
+                              .then(() => loadUsers(usersPage))
+                              .catch(err => toast.error(handleAPIError(err)));
+                          }}
+                          min={0}
+                        />
+                        <button onClick={() => adminAPI.updateUserReferrals(u.id, { signed_up: u.stats.signed_up_referrals + 1 }).then(() => loadUsers(usersPage)).catch(err => toast.error(handleAPIError(err)))} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">+</button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="inline-flex items-center space-x-2">
                         <button onClick={() => handleUserCompletedAdjust(u, u.stats.completed_referrals - 1)} className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">-</button>
