@@ -68,6 +68,9 @@ pids
 *.seed
 *.pid.lock
 
+# Recording outputs
+videos/
+
 # Optional npm cache directory
 .npm
 

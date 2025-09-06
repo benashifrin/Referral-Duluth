@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import QRCode from 'react-qr-code';
 import { API_URL } from '../services/api';
 
 const DemoPage = () => {
@@ -361,40 +362,22 @@ const DemoPage = () => {
 
       <div className="demo-content">
         <div className="demo-card" style={{maxWidth: 'unset'}}>
-          <div style={{
-            display: 'flex',
-            gap: '64px', /* spacing between QR codes (fits iPad width) */
-            flexWrap: 'nowrap', /* keep horizontal on iPad */
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}>
-            {/* Rewards QR */}
+          <div style={{ textAlign: 'center' }}>
+            {/* Rewards QR (centered) */}
             <div style={{textAlign: 'center'}}>
-              <div className="qr-container">
+              <div className="qr-container" aria-label="QR Code for BestDentistDuluth.com Login">
                 <div className="qr-glow"></div>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/login`)}`}
-                  alt="QR Code for BestDentistDuluth.com Login"
+                <QRCode
+                  value={`${API_URL}/qr/login`}
+                  size={250}
+                  bgColor="#ffffff"
+                  fgColor="#111111"
                   className="qr-code"
+                  level="M"
                 />
               </div>
               <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
                 <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
-              </p>
-            </div>
-
-            {/* Google Review QR */}
-            <div style={{textAlign: 'center'}}>
-              <div className="qr-container">
-                <div className="qr-glow"></div>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/review`)}`}
-                  alt="QR Code to leave a Google review"
-                  className="qr-code"
-                />
-              </div>
-              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
-                <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
               </p>
             </div>
           </div>

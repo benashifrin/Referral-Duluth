@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
-    "dev": "cd frontend && npm start"
+    "dev": "cd frontend && npm start",
+    "record:qrcode": "node scripts/record-qrcode.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.46.0"
   },
   "workspaces": ["frontend"]
 }
