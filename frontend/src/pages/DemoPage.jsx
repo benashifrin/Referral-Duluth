@@ -185,14 +185,16 @@ const DemoPage = () => {
         }
 
         .demo-card {
-          background: transparent; /* Let the blue gradient show through */
+          background: transparent; /* Let the gradient show through */
           border: none;
           border-radius: 24px;
-          padding: 1.5rem; /* tighter padding so QR dominates */
+          padding: 1.5rem;
           max-width: 100%;
-          margin: 1rem 0;
+          margin: 0;
           box-shadow: none;
           animation: none;
+          position: relative;
+          min-height: 100vh; /* full viewport stage for centered layout */
         }
 
         @keyframes float {
@@ -206,13 +208,13 @@ const DemoPage = () => {
         }
 
         .qr-code {
-          width: 250px;
-          height: 250px;
+          width: 300px; /* larger QR to balance caption */
+          height: 300px;
           border-radius: 12px;
           box-shadow: 0 8px 24px rgba(0,0,0,0.25);
           transition: all 0.3s ease;
           background: white; /* keep small white margin for scanner contrast */
-          padding: 8px; /* smaller white box behind the QR */
+          padding: 10px; /* small white box behind the QR */
         }
 
         .qr-code:hover {
@@ -252,7 +254,7 @@ const DemoPage = () => {
 
         .scan-text {
           color: #111111; /* black text as requested */
-          font-size: 2.1rem; /* doubled */
+          font-size: 1.6rem; /* readable on iPad without excessive wrapping */
           font-weight: 700;
           margin-top: 0.75rem; /* closer to QR */
           letter-spacing: 0.3px;
@@ -396,7 +398,7 @@ const DemoPage = () => {
                 className="qr-code"
               />
             </div>
-            <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
+            <p className="scan-text" style={{maxWidth:'32rem', margin:'0.75rem auto 0'}}>
               <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
             </p>
           </div>
@@ -410,7 +412,7 @@ const DemoPage = () => {
                 className="qr-code"
               />
             </div>
-            <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
+            <p className="scan-text" style={{maxWidth:'32rem', margin:'0.75rem auto 0'}}>
               <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
             </p>
           </div>
@@ -418,11 +420,11 @@ const DemoPage = () => {
           {/* Hidden audio element and enable button */}
           <audio ref={audioRef} src="/ding.wav" preload="auto" playsInline style={{display:'none'}} />
           {!unlocked && (
-            <div style={{marginTop: '24px'}}>
-              <button onClick={enableSound} className="btn-primary">
+            <div style={{position:'fixed', left:0, right:0, bottom:'32px', textAlign:'center'}}>
+              <button onClick={enableSound} className="btn-primary" style={{fontSize:'1.5rem', padding:'16px 24px'}}>
                 Enable Sound
               </button>
-              <div style={{marginTop:'8px', fontSize:'24px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
+              <div style={{marginTop:'8px', fontSize:'18px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
             </div>
           )}
         </div>
