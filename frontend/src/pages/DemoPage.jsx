@@ -166,6 +166,24 @@ const DemoPage = () => {
           color: white;
         }
 
+        /* Panels for single-QR display with fade */
+        .qr-panel {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 900ms ease-in-out;
+        }
+        .qr-panel.show {
+          opacity: 1;
+        }
+
         .demo-card {
           background: transparent; /* Let the blue gradient show through */
           border: none;
@@ -266,9 +284,16 @@ const DemoPage = () => {
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const KEY = 'qrSoundUnlocked';
+  const [showReview, setShowReview] = useState(true);
 
   useEffect(() => {
     try { setUnlocked(localStorage.getItem(KEY) === '1'); } catch {}
+  }, []);
+
+  // Alternate the visible QR every 30 seconds
+  useEffect(() => {
+    const id = setInterval(() => setShowReview(s => !s), 30000);
+    return () => clearInterval(id);
   }, []);
 
   const beepFallback = () => {
@@ -353,50 +378,41 @@ const DemoPage = () => {
     <>
       <style dangerouslySetInnerHTML={{__html: styles}} />
       
-      <div className="flowing-background">
-        <div className="gradient-layer gradient-layer-1"></div>
-        <div className="gradient-layer gradient-layer-2"></div>
-        <div className="gradient-layer gradient-layer-3"></div>
-      </div>
+      <div className="flowing-background" style={{
+        background: showReview
+          ? 'linear-gradient(135deg, #0ea5e9 0%, #7c3aed 100%)' // blue → purple (Review)
+          : 'linear-gradient(135deg, #a7f3d0 0%, #a5f3fc 100%)' // mint → pale turquoise (Refer-a-Friend)
+      }} />
 
       <div className="demo-content">
-        <div className="demo-card" style={{maxWidth: 'unset'}}>
-          <div style={{
-            display: 'flex',
-            gap: '64px', /* spacing between QR codes (fits iPad width) */
-            flexWrap: 'nowrap', /* keep horizontal on iPad */
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}>
-            {/* Rewards QR */}
-            <div style={{textAlign: 'center'}}>
-              <div className="qr-container">
-                <div className="qr-glow"></div>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/login`)}`}
-                  alt="QR Code for BestDentistDuluth.com Login"
-                  className="qr-code"
-                />
-              </div>
-              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
-                <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
-              </p>
+        <div className="demo-card" style={{maxWidth: 'unset', position:'relative', minHeight:'60vh'}}>
+          {/* Panels: show one at a time, fade between */}
+          <div className={`qr-panel ${showReview ? 'show' : ''}`}>
+            <div className="qr-container">
+              <div className="qr-glow"></div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/review`)}`}
+                alt="QR Code to leave a Google review"
+                className="qr-code"
+              />
             </div>
+            <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
+              <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
+            </p>
+          </div>
 
-            {/* Google Review QR */}
-            <div style={{textAlign: 'center'}}>
-              <div className="qr-container">
-                <div className="qr-glow"></div>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/review`)}`}
-                  alt="QR Code to leave a Google review"
-                  className="qr-code"
-                />
-              </div>
-              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
-                <strong>Leave a Review Today!</strong> Instantly receive a $25 credit to use at your next appointment.
-              </p>
+          <div className={`qr-panel ${!showReview ? 'show' : ''}`}>
+            <div className="qr-container">
+              <div className="qr-glow"></div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${API_URL}/qr/login`)}`}
+                alt="QR Code for BestDentistDuluth.com Login"
+                className="qr-code"
+              />
             </div>
+            <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
+              <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
+            </p>
           </div>
 
           {/* Hidden audio element and enable button */}
