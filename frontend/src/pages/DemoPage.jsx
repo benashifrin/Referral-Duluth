@@ -1,268 +1,317 @@
-import React, { useEffect, useRef, useState } from 'react';
-import QRCode from 'react-qr-code';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { API_URL } from '../services/api';
 
+const ROTATE_MS = 30_000;
+const FADE_MS = 400;
+
+const QR_TARGETS = [
+  {
+    key: 'rewards',
+    label: 'Scan to enter rewards program',
+    path: '/qr/login',
+    alt: 'QR Code for BestDentistDuluth.com Login',
+  },
+  {
+    key: 'review',
+    label: 'Leave us a review',
+    path: '/qr/review',
+    alt: 'QR Code to leave a Google review',
+  },
+];
+
+/** Mint/Teal themes */
+const THEMES = [
+  {
+    name: 'mint-teal',
+    baseFrom: '#a8edea',
+    baseTo:   '#14b8a6',
+    stops: ['#006d77', '#14b8a6', '#83eaf1', '#d1f9f4', '#a8edea', '#14b8a6'],
+  },
+  {
+    name: 'deep-teal-lav',
+    baseFrom: '#b5c7f2',
+    baseTo:   '#14b8a6',
+    stops: ['#0e7490', '#06b6d4', '#99f6e4', '#a7f3d0', '#b5c7f2', '#14b8a6'],
+  },
+];
+
 const DemoPage = () => {
-  const styles = `
-        .flowing-background {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          z-index: 0; /* above body background */
-          overflow: hidden;
-          pointer-events: none; /* don't block interactions */
-          /* Blue background gradient */
-          background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-        }
+  /** ---------- STATIC CSS (uses CSS variables) ---------- */
+  const staticStyles = `
+    .flowing-background {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background: linear-gradient(135deg, var(--base-from) 0%, var(--base-to) 100%);
+      transition: background 500ms ease;
+    }
 
-        .gradient-layer {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 200%;
-          height: 200%;
-          opacity: 0.8;
-          mix-blend-mode: screen;
-          filter: blur(40px);
-        }
+    .gradient-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 200%; height: 200%;
+      opacity: 0.8;
+      mix-blend-mode: screen;
+      filter: blur(40px);
+      transition: background 500ms ease;
+    }
 
-        .gradient-layer-1 {
-          background: conic-gradient(
-            from 0deg at 50% 50%, 
-            #ff6b6b, 
-            #4ecdc4, 
-            #45b7d1, 
-            #96ceb4, 
-            #ffeaa7, 
-            #ff6b6b
-          );
-          animation: rotate-flow-1 20s linear infinite;
-          transform-origin: center center;
-        }
+    .gradient-layer-1 {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c1)
+      );
+      animation: rotate-flow-1 20s linear infinite;
+      transform-origin: center center;
+    }
 
-        .gradient-layer-2 {
-          background: conic-gradient(
-            from 180deg at 30% 70%, 
-            #a8e6cf, 
-            #ff8a80, 
-            #b39ddb, 
-            #90caf9, 
-            #fff59d, 
-            #a8e6cf
-          );
-          animation: rotate-flow-2 25s linear infinite reverse;
-          transform-origin: 30% 70%;
-          opacity: 0.6;
-        }
+    .gradient-layer-2 {
+      background: conic-gradient(
+        from 180deg at 30% 70%,
+        var(--c2), var(--c4), var(--c3), var(--c5), var(--c1), var(--c2)
+      );
+      animation: rotate-flow-2 25s linear infinite reverse;
+      transform-origin: 30% 70%;
+      opacity: 0.6;
+    }
 
-        .gradient-layer-3 {
-          background: conic-gradient(
-            from 90deg at 70% 30%, 
-            #ffcc02, 
-            #ff6b9d, 
-            #c44569, 
-            #778beb, 
-            #52c41a, 
-            #ffcc02
-          );
-          animation: rotate-flow-3 30s linear infinite;
-          transform-origin: 70% 30%;
-          opacity: 0.4;
-        }
+    .gradient-layer-3 {
+      background: conic-gradient(
+        from 90deg at 70% 30%,
+        var(--c3), var(--c5), var(--c2), var(--c4), var(--c1), var(--c3)
+      );
+      animation: rotate-flow-3 30s linear infinite;
+      transform-origin: 70% 30%;
+      opacity: 0.4;
+    }
 
-        @keyframes rotate-flow-1 {
-          0% {
-            transform: rotate(0deg) scale(1) translate(0%, 0%);
-            filter: blur(40px) hue-rotate(0deg);
-          }
-          25% {
-            transform: rotate(90deg) scale(1.1) translate(-5%, 5%);
-            filter: blur(45px) hue-rotate(90deg);
-          }
-          50% {
-            transform: rotate(180deg) scale(1) translate(0%, 0%);
-            filter: blur(40px) hue-rotate(180deg);
-          }
-          75% {
-            transform: rotate(270deg) scale(1.1) translate(5%, -5%);
-            filter: blur(45px) hue-rotate(270deg);
-          }
-          100% {
-            transform: rotate(360deg) scale(1) translate(0%, 0%);
-            filter: blur(40px) hue-rotate(360deg);
-          }
-        }
+    @keyframes rotate-flow-1 {
+      0%   { transform: rotate(0deg)   scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(0deg); }
+      25%  { transform: rotate(90deg)  scale(1.1) translate(-5%, 5%);  filter: blur(45px) hue-rotate(90deg); }
+      50%  { transform: rotate(180deg) scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(180deg); }
+      75%  { transform: rotate(270deg) scale(1.1) translate(5%, -5%);  filter: blur(45px) hue-rotate(270deg); }
+      100% { transform: rotate(360deg) scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(360deg); }
+    }
 
-        @keyframes rotate-flow-2 {
-          0% {
-            transform: rotate(0deg) scale(1.2) translate(-10%, 10%);
-            filter: blur(50px) hue-rotate(0deg);
-          }
-          33% {
-            transform: rotate(120deg) scale(1) translate(5%, -5%);
-            filter: blur(35px) hue-rotate(120deg);
-          }
-          66% {
-            transform: rotate(240deg) scale(1.1) translate(-5%, 5%);
-            filter: blur(45px) hue-rotate(240deg);
-          }
-          100% {
-            transform: rotate(360deg) scale(1.2) translate(-10%, 10%);
-            filter: blur(50px) hue-rotate(360deg);
-          }
-        }
+    @keyframes rotate-flow-2 {
+      0%   { transform: rotate(0deg)   scale(1.2) translate(-10%, 10%); filter: blur(50px) hue-rotate(0deg); }
+      33%  { transform: rotate(120deg) scale(1)   translate(5%, -5%);   filter: blur(35px) hue-rotate(120deg); }
+      66%  { transform: rotate(240deg) scale(1.1) translate(-5%, 5%);   filter: blur(45px) hue-rotate(240deg); }
+      100% { transform: rotate(360deg) scale(1.2) translate(-10%, 10%); filter: blur(50px) hue-rotate(360deg); }
+    }
 
-        @keyframes rotate-flow-3 {
-          0% {
-            transform: rotate(0deg) scale(0.9) translate(15%, -15%);
-            filter: blur(30px) hue-rotate(0deg);
-          }
-          40% {
-            transform: rotate(144deg) scale(1.3) translate(-10%, 10%);
-            filter: blur(55px) hue-rotate(144deg);
-          }
-          80% {
-            transform: rotate(288deg) scale(1) translate(5%, -5%);
-            filter: blur(40px) hue-rotate(288deg);
-          }
-          100% {
-            transform: rotate(360deg) scale(0.9) translate(15%, -15%);
-            filter: blur(30px) hue-rotate(360deg);
-          }
-        }
+    @keyframes rotate-flow-3 {
+      0%   { transform: rotate(0deg)   scale(0.9) translate(15%, -15%); filter: blur(30px) hue-rotate(0deg); }
+      40%  { transform: rotate(144deg) scale(1.3) translate(-10%, 10%); filter: blur(55px) hue-rotate(144deg); }
+      80%  { transform: rotate(288deg) scale(1)   translate(5%, -5%);   filter: blur(40px) hue-rotate(288deg); }
+      100% { transform: rotate(360deg) scale(0.9) translate(15%, -15%); filter: blur(30px) hue-rotate(360deg); }
+    }
 
-        .flowing-background,
-        .gradient-layer {
-          backface-visibility: hidden;
-          perspective: 1000px;
-          will-change: transform;
-        }
+    .flowing-background, .gradient-layer {
+      backface-visibility: hidden;
+      perspective: 1000px;
+      will-change: transform;
+    }
 
-        @media (prefers-reduced-motion: reduce) {
-          .gradient-layer-1 {
-            animation-duration: 60s;
-          }
-          
-          .gradient-layer-2 {
-            animation-duration: 80s;
-          }
-          
-          .gradient-layer-3 {
-            animation-duration: 100s;
-          }
-        }
+    @media (prefers-reduced-motion: reduce) {
+      .gradient-layer-1 { animation-duration: 60s; }
+      .gradient-layer-2 { animation-duration: 80s; }
+      .gradient-layer-3 { animation-duration: 100s; }
+    }
 
-        .demo-content {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          padding: 2rem;
-          text-align: center;
-          color: white;
-        }
+    .demo-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+      color: white;
+    }
 
-        .demo-card {
-          background: transparent; /* Let the blue gradient show through */
-          border: none;
-          border-radius: 24px;
-          padding: 1.5rem; /* tighter padding so QR dominates */
-          max-width: 100%;
-          margin: 1rem 0;
-          box-shadow: none;
-          animation: none;
-        }
+    .demo-card {
+      background: transparent;
+      border: none;
+      border-radius: 24px;
+      padding: 1.5rem;
+      max-width: 100%;
+      margin: 1rem 0;
+      box-shadow: none;
+      animation: none;
+    }
 
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
+    .qr-container { position: relative; display: inline-block; }
 
-        .qr-container {
-          position: relative;
-          display: inline-block;
-        }
+    /* Doubled size */
+    .qr-code {
+      width: 500px; height: 500px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      transition: all 0.3s ease, opacity ${FADE_MS}ms ease;
+      background: white;
+      padding: 16px;
+    }
 
-        .qr-code {
-          width: 250px;
-          height: 250px;
-          border-radius: 12px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-          transition: all 0.3s ease;
-          background: white; /* keep small white margin for scanner contrast */
-          padding: 8px; /* smaller white box behind the QR */
-        }
+    .qr-code:hover {
+      transform: scale(1.05);
+      box-shadow:
+        0 25px 60px rgba(0,0,0,0.5),
+        0 10px 30px rgba(0,0,0,0.3),
+        inset 0 2px 10px rgba(255,255,255,0.2);
+    }
 
-        .qr-code:hover {
-          transform: scale(1.05);
-          box-shadow: 
-            0 25px 60px rgba(0,0,0,0.5),
-            0 10px 30px rgba(0,0,0,0.3),
-            inset 0 2px 10px rgba(255,255,255,0.2);
-        }
+    /* Doubled glow padding */
+    .qr-glow {
+      position: absolute;
+      top: -40px; left: -40px; right: -40px; bottom: -40px;
+      background: conic-gradient(from 0deg, var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c1));
+      border-radius: 35px;
+      opacity: 0.30;
+      filter: blur(15px);
+      animation: rotate 8s linear infinite;
+      z-index: -1;
+      transition: background 500ms ease, opacity ${FADE_MS}ms ease;
+    }
 
-        .qr-glow {
-          position: absolute;
-          top: -20px;
-          left: -20px;
-          right: -20px;
-          bottom: -20px;
-          background: conic-gradient(
-            from 0deg,
-            #ff6b6b,
-            #4ecdc4,
-            #45b7d1,
-            #96ceb4,
-            #ffeaa7,
-            #ff6b6b
-          );
-          border-radius: 35px;
-          opacity: 0.3;
-          filter: blur(15px);
-          animation: rotate 8s linear infinite;
-          z-index: -1;
-        }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
 
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+    /* ----------- MORE VISIBLE TEXT ----------- */
+    .scan-text {
+      color: #0f172a;            /* slate-900 for strong contrast */
+      font-size: 2.1rem;
+      font-weight: 800;          /* bolder */
+      margin-top: 1.5rem;
+      letter-spacing: 0.2px;
+      display: block;
+      /* subtle outline so it's readable over busy bg even without pill */
+      text-shadow:
+        0 1px 2px rgba(255,255,255,0.7),
+        0 0 20px rgba(255,255,255,0.35);
+      transition: color 300ms ease, opacity ${FADE_MS}ms ease;
+    }
+    /* High-contrast pill behind the text for maximum legibility */
+    .scan-pill {
+      display: inline-block;
+      padding: 10px 18px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.92);
+      color: #0f172a;            /* dark text on light pill */
+      border: 1px solid rgba(255,255,255,0.7);
+      backdrop-filter: blur(6px) saturate(120%);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      line-height: 1.1;
+    }
 
-        .scan-text {
-          color: #111111; /* black text as requested */
-          font-size: 2.1rem; /* doubled */
-          font-weight: 700;
-          margin-top: 0.75rem; /* closer to QR */
-          letter-spacing: 0.3px;
-          display: block; /* ensure always under the QR */
-          text-shadow: 0 2px 6px rgba(255,255,255,0.6); /* subtle pop without large white pill */
-        }
+    /* Controls (hidden by default, fade-in on tap, fade-out after idle) */
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 300ms ease;
+    }
+    .controls.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .controls button {
+      appearance: none;
+      border: none;
+      border-radius: 9999px;
+      padding: 10px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: #14b8a6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .controls button.alt { background: #0ea5e9; }
+    .controls button:active { transform: translateY(1px); }
+  `;
 
-        /* Make the enable-sound button text larger on this page only */
-        .demo-content .btn-primary {
-          font-size: 2rem;
-          padding: 20px 28px;
-        }
+  /** ---------- QR swapping (every 30s, clock-aligned) ---------- */
+  const initialIndex = useMemo(
+    () => Math.floor(Date.now() / ROTATE_MS) % QR_TARGETS.length,
+    []
+  );
+  const [qrIndex, setQrIndex] = useState(initialIndex);
+  const [isCycling, setIsCycling] = useState(true);
+  const [isFading, setIsFading] = useState(false);
 
-        .demo-title {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+  // timer refs
+  const alignTimeoutRef = useRef(null);
+  const cycleIntervalRef = useRef(null);
 
-        .demo-description {
-          font-size: 1.2rem;
-          line-height: 1.6;
-          margin-bottom: 1rem;
-        }
-      `;
+  useEffect(() => {
+    const clearTimers = () => {
+      if (alignTimeoutRef.current) { clearTimeout(alignTimeoutRef.current); alignTimeoutRef.current = null; }
+      if (cycleIntervalRef.current) { clearInterval(cycleIntervalRef.current); cycleIntervalRef.current = null; }
+    };
 
-  // Option A: One-time sound enable, then auto-ding on visit
+    if (!isCycling) {
+      clearTimers();
+      return;
+    }
+
+    const doSwapWithFade = () => {
+      setIsFading(true);
+      setTimeout(() => {
+        setQrIndex(prev => (prev + 1) % QR_TARGETS.length);
+        setIsFading(false);
+      }, FADE_MS);
+    };
+
+    const now = Date.now();
+    let delay = ROTATE_MS - (now % ROTATE_MS);
+    if (delay === ROTATE_MS) delay = 0;
+
+    alignTimeoutRef.current = setTimeout(() => {
+      doSwapWithFade();
+      cycleIntervalRef.current = setInterval(doSwapWithFade, ROTATE_MS);
+    }, delay);
+
+    return clearTimers;
+  }, [isCycling]);
+
+  const current = QR_TARGETS[qrIndex];
+  const theme = THEMES[qrIndex % THEMES.length]; // swap theme with QR
+  const qrDataUrl = `${API_URL}${current.path}`;
+  const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrDataUrl)}`;
+
+  /** ---------- Dynamic CSS variables for theme ---------- */
+  const dynamicVars = `
+    :root {
+      --base-from: ${theme.baseFrom};
+      --base-to:   ${theme.baseTo};
+      --c1: ${theme.stops[0]};
+      --c2: ${theme.stops[1]};
+      --c3: ${theme.stops[2]};
+      --c4: ${theme.stops[3]};
+      --c5: ${theme.stops[4]};
+      --c6: ${theme.stops[5]};
+    }
+  `;
+
+  /** ---------- SOUND (unchanged) ---------- */
   const [unlocked, setUnlocked] = useState(false);
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -297,7 +346,6 @@ const DemoPage = () => {
         return true;
       }
     } catch {}
-    // Fallback beep if media is blocked or missing
     beepFallback();
     return true;
   };
@@ -308,7 +356,7 @@ const DemoPage = () => {
     setUnlocked(true);
   };
 
-  // Subscribe to immediate QR events via Server-Sent Events; fallback to polling on error
+  // SSE / polling for events (unchanged)
   useEffect(() => {
     if (!unlocked) return;
     let es;
@@ -350,49 +398,127 @@ const DemoPage = () => {
     };
   }, [unlocked]);
 
+  /** ---------- Controls visibility (hidden by default; show on tap; auto-hide) ---------- */
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const hideTimerRef = useRef(null);
+
+  const scheduleHide = () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setControlsVisible(false), 4000);
+  };
+
+  useEffect(() => {
+    const onUserInteract = () => {
+      setControlsVisible(true);
+      scheduleHide();
+    };
+    window.addEventListener('pointerdown', onUserInteract, { passive: true });
+    window.addEventListener('touchstart', onUserInteract, { passive: true });
+    window.addEventListener('mousemove', onUserInteract, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', onUserInteract);
+      window.removeEventListener('touchstart', onUserInteract);
+      window.removeEventListener('mousemove', onUserInteract);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  /** ---------- Control handlers ---------- */
+  const switchInstant = (key) => {
+    setIsCycling(false);
+    setIsFading(false);
+    const idx = QR_TARGETS.findIndex((q) => q.key === key);
+    if (idx >= 0) setQrIndex(idx);
+    setControlsVisible(true);
+    scheduleHide();
+  };
+
+  const startCycling = () => {
+    setIsCycling(true);
+    setControlsVisible(true);
+    scheduleHide();
+  };
+
+  // fade style used for auto-cycling transitions
+  const fadingStyle = { opacity: isFading ? 0 : 1, transition: `opacity ${FADE_MS}ms ease` };
+
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: styles}} />
-      
+      {/* Static CSS + dynamic theme variables */}
+      <style dangerouslySetInnerHTML={{ __html: staticStyles }} />
+      <style dangerouslySetInnerHTML={{ __html: dynamicVars }} />
+
+      {/* Animated background */}
       <div className="flowing-background">
-        <div className="gradient-layer gradient-layer-1"></div>
-        <div className="gradient-layer gradient-layer-2"></div>
-        <div className="gradient-layer gradient-layer-3"></div>
+        <div className="gradient-layer gradient-layer-1" style={fadingStyle}></div>
+        <div className="gradient-layer gradient-layer-2" style={fadingStyle}></div>
+        <div className="gradient-layer gradient-layer-3" style={fadingStyle}></div>
       </div>
 
+      {/* Foreground content */}
       <div className="demo-content">
-        <div className="demo-card" style={{maxWidth: 'unset'}}>
-          <div style={{ textAlign: 'center' }}>
-            {/* Centered QR */}
-            <div style={{textAlign: 'center'}}>
-              <div className="qr-container" aria-label="QR Code for BestDentistDuluth.com Login">
-                <div className="qr-glow"></div>
-                <QRCode
-                  value={`${API_URL}/qr/login`}
-                  size={250}
-                  bgColor="#ffffff"
-                  fgColor="#111111"
+        <div className="demo-card" style={{ maxWidth: 'unset' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '24px',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {/* Single QR that swaps every 30s; colors/theme swap in sync */}
+            <div style={{ textAlign: 'center' }}>
+              <div className="qr-container" aria-live="polite" aria-atomic="true" style={fadingStyle}>
+                <div className="qr-glow" style={fadingStyle}></div>
+                <img
+                  key={current.key}
+                  src={qrImgSrc}
+                  alt={current.alt}
                   className="qr-code"
-                  level="M"
+                  style={fadingStyle}
                 />
               </div>
-              <p className="scan-text" style={{maxWidth:'20rem', margin:'0.75rem auto 0'}}>
-                <strong>Refer a Friend!</strong> When they join as a patient, you'll get a $50 gift card.
+              {/* Pill-backed text for max visibility */}
+              <p className="scan-text" style={fadingStyle}>
+                <span className="scan-pill">{current.label}</span>
               </p>
             </div>
           </div>
 
           {/* Hidden audio element and enable button */}
-          <audio ref={audioRef} src="/ding.wav" preload="auto" playsInline style={{display:'none'}} />
+          <audio ref={audioRef} src="/ding.wav" preload="auto" playsInline style={{ display: 'none' }} />
           {!unlocked && (
-            <div style={{marginTop: '24px'}}>
-              <button onClick={enableSound} className="btn-primary">
+            <div style={{ marginTop: '24px' }}>
+              <button
+                onClick={enableSound}
+                className="btn-primary"
+                style={{
+                  background: '#14b8a6',
+                  color: 'white',
+                  borderRadius: 12,
+                  padding: '10px 16px',
+                  fontWeight: 700,
+                }}
+              >
                 Enable Sound
               </button>
-              <div style={{marginTop:'8px', fontSize:'24px', color:'#e5e7eb'}}>Tap once to allow sound on this device.</div>
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#e5e7eb' }}>
+                Tap once to allow sound on this device.
+              </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Controls: hidden by default, fade in on tap, fade out after a few seconds */}
+      <div className={`controls ${controlsVisible ? 'visible' : ''}`}>
+        <button className="alt" onClick={() => switchInstant('review')}>Review</button>
+        <button onClick={() => switchInstant('rewards')}>Referral</button>
+        <button className="alt" onClick={startCycling}>
+          {isCycling ? 'Cycling…' : 'Cycle'}
+        </button>
       </div>
     </>
   );
