@@ -11,6 +11,7 @@ const LoginPage = ({ onLogin }) => {
   const [otp, setOtp] = useState('');
   const STAFF_MEMBERS = ["Amanda", "Taquila", "Monti", "Sanita", "Ben"];
   const [staff, setStaff] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [needsStaff, setNeedsStaff] = useState(true);
@@ -65,6 +66,10 @@ const LoginPage = ({ onLogin }) => {
       toast.error('Please select the team member who helped you');
       return;
     }
+    if (!name.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
     
     setLoading(true);
     
@@ -75,8 +80,8 @@ const LoginPage = ({ onLogin }) => {
       console.log(`[Mobile Debug] Is mobile: ${isMobile}`);
       console.log(`[Mobile Debug] User agent: ${navigator.userAgent}`);
       
-      console.log('[Login] Submitting OTP verify payload:', { email, token: otp, staff: needsStaff ? staff : undefined });
-      const result = await authAPI.verifyOTP(email, otp, needsStaff ? staff : undefined);
+      console.log('[Login] Submitting OTP verify payload:', { email, token: otp, staff: needsStaff ? staff : undefined, name });
+      const result = await authAPI.verifyOTP(email, otp, needsStaff ? staff : undefined, name.trim());
       console.log(`[Mobile Debug] OTP verification successful:`, result);
       
       // Report success to server for mobile tracking
@@ -302,6 +307,23 @@ const LoginPage = ({ onLogin }) => {
                 />
               </div>
 
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-3">
+                  Your Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input-field h-12 text-base"
+                  placeholder="e.g., Jane Doe"
+                  disabled={loading}
+                />
+              </div>
+
               {needsStaff && (
                 <div>
                   <label htmlFor="staff" className="block text-sm font-medium text-gray-700 mb-3">
@@ -326,7 +348,7 @@ const LoginPage = ({ onLogin }) => {
 
               <button
                 type="submit"
-                disabled={loading || otp.length !== 6 || (needsStaff && !staff)}
+                disabled={loading || otp.length !== 6 || !name.trim() || (needsStaff && !staff)}
                 className="w-full btn-primary h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

@@ -199,6 +199,14 @@ with app.app_context():
         # Add User.signed_up_by_staff if missing
         if 'user' in insp.get_table_names():
             user_cols = {c['name'] for c in insp.get_columns('user')}
+            # Add user.name column if missing
+            if 'name' not in user_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN name VARCHAR(100)'))
+                    db.session.commit()
+                    logger.info('Added column user.name')
+                except Exception as e:
+                    logger.warning(f'Could not add user.name: {e}')
             if 'signed_up_by_staff' not in user_cols:
                 try:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN signed_up_by_staff VARCHAR(50)'))
@@ -863,6 +871,13 @@ def verify_otp():
         logger.info(f"[{request_id}] OTP VERIFY - Parsed JSON keys: {list(data.keys())}")
         email = data.get('email', '').strip().lower()
         token = data.get('token', '').strip()
+        # Normalize potential name fields
+        raw_name_values = {
+            'name': data.get('name'),
+            'full_name': data.get('full_name'),
+            'display_name': data.get('display_name'),
+        }
+        name = (data.get('name') or data.get('full_name') or data.get('display_name') or '').strip()
         # Accept multiple possible keys and normalize
         staff_raw_values = {
             'staff': data.get('staff'),
@@ -934,6 +949,16 @@ def verify_otp():
             db.session.commit()
         else:
             logger.info(f"[{request_id}] USER FOUND - Existing user {email} (ID: {user.id})")
+        # If a name was provided and user has no name yet, save it
+        try:
+            if name and not getattr(user, 'name', None):
+                # Basic sanitation: collapse spaces and limit length
+                safe_name = re.sub(r'\s+', ' ', name)[:100]
+                user.name = safe_name
+                db.session.commit()
+                logger.info(f"[{request_id}] USER UPDATE - Saved name for {email}: {safe_name}")
+        except Exception as _e:
+            logger.warning(f"[{request_id}] USER UPDATE - Failed to save name: {_e}")
         
         # CRITICAL MOBILE DEBUG - Track if mobile reaches session setup
         if is_mobile:
@@ -1438,6 +1463,7 @@ def admin_list_users(user):
                 'total_earnings': u.total_earnings,
                 'created_at': u.created_at.isoformat(),
                 'signed_up_by_staff': getattr(u, 'signed_up_by_staff', None),
+                'name': getattr(u, 'name', None),
             })
 
         return jsonify({
