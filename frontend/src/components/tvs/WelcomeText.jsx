@@ -5,7 +5,7 @@ export default function WelcomeText({ name }) {
     <>
       <style>{`
         .welcome {
-          position: fixed; top: 10vh; left: 50%;
+          position: fixed; top: 6vh; left: 50%;
           transform: translateX(-50%);
           z-index: 10;
           display: flex;
@@ -27,9 +27,9 @@ export default function WelcomeText({ name }) {
           margin: 0 auto;
         }
         .pill-lg {
-          font-size: clamp(24px, 4.8vw, 48px);
-          padding: 14px 28px;
-          min-height: 56px;
+          font-size: clamp(18px, 3.2vw, 32px);
+          padding: 12px 22px;
+          min-height: 48px;
         }
         .pill-sm {
           font-size: clamp(12px, 2.2vw, 16px);

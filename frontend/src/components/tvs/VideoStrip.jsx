@@ -30,6 +30,17 @@ export default function VideoStrip() {
           border-radius: 16px;
           background: rgba(0,0,0,0.00);
           z-index: 12;
+          text-align: center;
+        }
+        .heading {
+          display: inline-block;
+          margin-bottom: 10px;
+          color: #0b1324; font-weight: 800; font-size: 18px;
+          background: #ffffff;
+          border-radius: 9999px;
+          padding: 8px 12px;
+          border: 1px solid rgba(0,0,0,0.06);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
         }
         .video-strip-viewport {
           overflow-x: auto; overflow-y: hidden;
@@ -43,11 +54,11 @@ export default function VideoStrip() {
         .video-strip-viewport::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.30); border-radius: 8px; }
         .video-strip-viewport::-webkit-scrollbar-track { background: rgba(255,255,255,0.35); border-radius: 8px; }
         .video-strip-track {
-          display: flex; align-items: flex-start; gap: 20px;
+          display: flex; align-items: flex-start; gap: 18px;
           padding-bottom: 8px;
         }
         .card {
-          width: 280px; /* even larger cards for TV */
+          width: 240px; /* slightly smaller than before */
           flex: 0 0 auto;
           cursor: pointer;
         }
@@ -67,13 +78,13 @@ export default function VideoStrip() {
         .play-badge {
           position: absolute; right: 8px; bottom: 8px;
           background: rgba(255,255,255,0.9);
-          color: #0b1324; font-weight: 900; font-size: 16px;
+          color: #0b1324; font-weight: 900; font-size: 14px;
           border-radius: 9999px; padding: 4px 8px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.2);
           pointer-events: none;
         }
         .title {
-          margin-top: 10px; color: #0b1324; font-weight: 800; font-size: 22px;
+          margin-top: 10px; color: #0b1324; font-weight: 800; font-size: 18px;
           text-align: center;
           text-shadow: none;
           background: #ffffff;
@@ -85,6 +96,7 @@ export default function VideoStrip() {
       `}</style>
 
       <div className="video-strip-root">
+        <div className="heading">Prefer a Youtube video?</div>
         <div className="video-strip-viewport" ref={viewportRef} onWheel={onWheel}>
           <div className="video-strip-track">
             {items.map((v, i) => {
