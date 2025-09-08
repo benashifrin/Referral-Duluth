@@ -40,7 +40,7 @@ export default function QRDisplay() {
           letter-spacing: 0.02em;
           border: 1px solid rgba(0,0,0,0.06);
           box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
-          font-size: clamp(10px, 1.2vw, 14px);
+          font-size: clamp(14px, 1.8vw, 22px);
         }
       `}</style>
       <div className="qr-wrap">
