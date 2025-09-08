@@ -22,7 +22,7 @@ export default function QRDisplay() {
         @media (max-height: 800px) { .qr-wrap { top: 48%; } }
         @media (max-height: 700px) { .qr-wrap { top: 46%; } }
         .qr-card {
-          padding: 32px;
+          padding: 24px;
           border-radius: 24px;
           background: rgba(0,0,0,0.4);
           backdrop-filter: blur(6px);
@@ -40,12 +40,12 @@ export default function QRDisplay() {
           letter-spacing: 0.02em;
           border: 1px solid rgba(0,0,0,0.06);
           box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
-          font-size: clamp(16px, 2.4vw, 24px);
+          font-size: clamp(12px, 1.6vw, 16px);
         }
       `}</style>
       <div className="qr-wrap">
         <div className="qr-card">
-          <QRCode value={current.url} size={340} fgColor="#ffffff" bgColor="transparent" />
+          <QRCode value={current.url} size={260} fgColor="#ffffff" bgColor="transparent" />
         </div>
         <div className="qr-label">{current.label}</div>
       </div>
