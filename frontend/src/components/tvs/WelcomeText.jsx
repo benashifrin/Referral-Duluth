@@ -1,6 +1,9 @@
 import React from 'react';
 
 export default function WelcomeText({ name }) {
+  const raw = (name || '').trim();
+  const isDefault = raw.length === 0 || raw.toLowerCase() === 'duluth dental center'.toLowerCase() || raw.toLowerCase() === 'friend';
+  const heading = isDefault ? 'Welcome to Duluth Dental Center' : `Welcome ${raw}`;
   return (
     <>
       <style>{`
@@ -39,7 +42,7 @@ export default function WelcomeText({ name }) {
         }
       `}</style>
       <div className="welcome">
-        <h1 className="pill pill-lg">Welcome {name || 'Duluth Dental Center'}</h1>
+        <h1 className="pill pill-lg">{heading}</h1>
       </div>
     </>
   );
