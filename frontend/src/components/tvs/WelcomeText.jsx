@@ -39,7 +39,7 @@ export default function WelcomeText({ name }) {
         }
       `}</style>
       <div className="welcome">
-        <h1 className="pill pill-lg">Welcome to {name || 'Duluth Dental Center'}</h1>
+        <h1 className="pill pill-lg">Welcome {name || 'Duluth Dental Center'}</h1>
       </div>
     </>
   );
