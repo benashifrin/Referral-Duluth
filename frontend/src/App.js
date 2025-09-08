@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import QuotePage from './pages/QuotePage';
 import DemoPage from './pages/DemoPage';
+import TVsPage from './pages/TVsPage';
 import ScanPage from './pages/ScanPage';
 import './index.css';
 
@@ -21,7 +22,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/qrcode', '/scan'];
+      const publicRoutes = ['/login', '/quote', '/qrcode', '/scan', '/tvs'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
@@ -158,6 +159,12 @@ function App() {
             <Route
               path="/scan"
               element={<ScanPage />}
+            />
+
+            {/* TVs page (public) */}
+            <Route
+              path="/tvs"
+              element={<TVsPage />}
             />
             
             {/* Catch all route */}
