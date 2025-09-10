@@ -10,6 +10,8 @@ export default function TVsPage() {
   const [name, setName] = useState(() => localStorage.getItem('welcomeName') || 'Duluth Dental Center');
   const [showBrandedContent, setShowBrandedContent] = useState(false);
   const [safeMode, setSafeMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fsRef = useRef(null);
   const idleTimer = useRef(null);
   const brandedContentTimer = useRef(null);
   const hideContentTimer = useRef(null);
@@ -58,6 +60,28 @@ export default function TVsPage() {
     }
   }, []);
 
+  // Fullscreen change listener
+  useEffect(() => {
+    const onFsChange = () => {
+      const el = document.fullscreenElement;
+      setIsFullscreen(!!el && fsRef.current && el === fsRef.current);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!fsRef.current) return;
+    if (!document.fullscreenElement) {
+      fsRef.current.requestFullscreen?.();
+    } else if (document.fullscreenElement === fsRef.current) {
+      document.exitFullscreen?.();
+    } else {
+      // If another element is fullscreen, exit then request on ours
+      document.exitFullscreen?.().then(() => fsRef.current.requestFullscreen?.());
+    }
+  };
+
   // Branded content timer system - 5 minutes on, 1 minute overlay
   useEffect(() => {
     const showBrandedContentCycle = () => {
@@ -104,7 +128,7 @@ export default function TVsPage() {
   }), [visibleUI, safeMode]);
 
   return (
-    <>
+    <div ref={fsRef} style={{ width: '100%', height: '100%' }}>
       <Background reducedMotion={safeMode} />
 
       <div style={toolbarStyle}>
@@ -123,10 +147,23 @@ export default function TVsPage() {
             width: 180
           }}
         />
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            padding: '8px 10px',
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.25)',
+            background: 'rgba(255,255,255,0.15)',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </button>
       </div>
 
       {showBrandedContent && <BrandedSidebar name={name} reducedMotion={safeMode} />}
       <VideoStrip />
-    </>
+    </div>
   );
 }

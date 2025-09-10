@@ -36,6 +36,7 @@ export default function VideoStrip() {
         playerVars: {
           autoplay: 1,
           controls: 1,
+          fs: 0,
           modestbranding: 1,
           rel: 0,
           iv_load_policy: 3,
