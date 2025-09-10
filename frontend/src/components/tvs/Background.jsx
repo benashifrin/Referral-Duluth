@@ -18,7 +18,7 @@ export const THEMES = [
 
 const FADE_MS = 400;
 
-export default function Background({ theme = THEMES[0], fade = false, zIndex = 0 }) {
+export default function Background({ theme = THEMES[0], fade = false, zIndex = 0, reducedMotion = false }) {
   const staticCSS = `
     .flowing-background {
       position: fixed;
@@ -31,20 +31,20 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
       transition: background 500ms ease;
       backface-visibility: hidden;
       perspective: 1000px;
-      will-change: transform;
+      ${reducedMotion ? '' : 'will-change: transform;'}
     }
 
     .gradient-layer {
       position: absolute;
       top: 0; left: 0;
       width: 200%; height: 200%;
-      opacity: 0.8;
-      mix-blend-mode: screen;
-      filter: blur(40px);
+      opacity: ${reducedMotion ? '0.35' : '0.8'};
+      ${reducedMotion ? '' : 'mix-blend-mode: screen;'}
+      ${reducedMotion ? '' : 'filter: blur(40px);'}
       transition: background 500ms ease, opacity ${FADE_MS}ms ease;
       backface-visibility: hidden;
       perspective: 1000px;
-      will-change: transform, filter;
+      ${reducedMotion ? '' : 'will-change: transform, filter;'}
     }
 
     .gradient-layer-1 {
@@ -52,7 +52,7 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
         from 0deg at 50% 50%,
         var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c1)
       );
-      animation: rotate-flow-1 20s linear infinite;
+      ${reducedMotion ? '' : 'animation: rotate-flow-1 20s linear infinite;'}
       transform-origin: center center;
     }
 
@@ -61,9 +61,9 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
         from 180deg at 30% 70%,
         var(--c2), var(--c4), var(--c3), var(--c5), var(--c1), var(--c2)
       );
-      animation: rotate-flow-2 25s linear infinite reverse;
+      ${reducedMotion ? '' : 'animation: rotate-flow-2 25s linear infinite reverse;'}
       transform-origin: 30% 70%;
-      opacity: 0.6;
+      opacity: ${reducedMotion ? '0.25' : '0.6'};
     }
 
     .gradient-layer-3 {
@@ -71,9 +71,9 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
         from 90deg at 70% 30%,
         var(--c3), var(--c5), var(--c2), var(--c4), var(--c1), var(--c3)
       );
-      animation: rotate-flow-3 30s linear infinite;
+      ${reducedMotion ? '' : 'animation: rotate-flow-3 30s linear infinite;'}
       transform-origin: 70% 30%;
-      opacity: 0.4;
+      opacity: ${reducedMotion ? '0.2' : '0.4'};
     }
 
     @keyframes rotate-flow-1 {
@@ -98,11 +98,13 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
       100% { transform: rotate(360deg) scale(0.9) translate(15%, -15%); filter: blur(30px) hue-rotate(360deg); }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      .gradient-layer-1 { animation-duration: 60s; }
-      .gradient-layer-2 { animation-duration: 80s; }
-      .gradient-layer-3 { animation-duration: 100s; }
-    }
+    ${reducedMotion ? '' : `
+      @media (prefers-reduced-motion: reduce) {
+        .gradient-layer-1 { animation-duration: 60s; }
+        .gradient-layer-2 { animation-duration: 80s; }
+        .gradient-layer-3 { animation-duration: 100s; }
+      }
+    `}
   `;
 
   const vars = `
@@ -125,11 +127,17 @@ export default function Background({ theme = THEMES[0], fade = false, zIndex = 0
       <style dangerouslySetInnerHTML={{ __html: staticCSS }} />
       <style dangerouslySetInnerHTML={{ __html: vars }} />
       <div className="flowing-background">
-        <div className="gradient-layer gradient-layer-1" style={fadeStyle} />
-        <div className="gradient-layer gradient-layer-2" style={fadeStyle} />
-        <div className="gradient-layer gradient-layer-3" style={fadeStyle} />
+        {reducedMotion ? (
+          // Static gradient only; no animated layers
+          <div style={{ width: '100%', height: '100%' }} />
+        ) : (
+          <>
+            <div className="gradient-layer gradient-layer-1" style={fadeStyle} />
+            <div className="gradient-layer gradient-layer-2" style={fadeStyle} />
+            <div className="gradient-layer gradient-layer-3" style={fadeStyle} />
+          </>
+        )}
       </div>
     </>
   );
 }
-

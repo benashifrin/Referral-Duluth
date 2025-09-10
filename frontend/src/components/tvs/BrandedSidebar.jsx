@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function BrandedSidebar({ name }) {
+export default function BrandedSidebar({ name, reducedMotion = false }) {
   const welcomeText = name === 'Duluth Dental Center' 
     ? 'Welcome to Duluth Dental Center' 
     : `Welcome ${name}`;
@@ -25,7 +25,7 @@ export default function BrandedSidebar({ name }) {
           left: 0;
           width: 100vw;
           height: 100vh;
-          background: rgba(0, 0, 0, 0.6);
+          background: rgba(0, 0, 0, ${reducedMotion ? '0.5' : '0.6'});
           z-index: 10;
           display: flex;
           align-items: center;
@@ -51,12 +51,12 @@ export default function BrandedSidebar({ name }) {
           left: -50%;
           width: 200%;
           height: 200%;
-          opacity: 0.8;
-          mix-blend-mode: screen;
-          filter: blur(25px);
+          opacity: ${reducedMotion ? '0.2' : '0.8'};
+          ${reducedMotion ? '' : 'mix-blend-mode: screen;'}
+          ${reducedMotion ? '' : 'filter: blur(25px);'}
           backface-visibility: hidden;
           perspective: 1000px;
-          will-change: transform;
+          ${reducedMotion ? '' : 'will-change: transform;'}
           contain: layout style paint;
           transform: translate3d(0, 0, 0);
         }
@@ -66,7 +66,7 @@ export default function BrandedSidebar({ name }) {
             from 0deg at 50% 50%,
             var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c1)
           );
-          animation: rotate-flow-1 20s linear infinite;
+          ${reducedMotion ? '' : 'animation: rotate-flow-1 20s linear infinite;'}
           transform-origin: center center;
         }
         
@@ -75,9 +75,9 @@ export default function BrandedSidebar({ name }) {
             from 180deg at 30% 70%,
             var(--c2), var(--c4), var(--c3), var(--c5), var(--c1), var(--c2)
           );
-          animation: rotate-flow-2 25s linear infinite reverse;
+          ${reducedMotion ? '' : 'animation: rotate-flow-2 25s linear infinite reverse;'}
           transform-origin: 30% 70%;
-          opacity: 0.6;
+          opacity: ${reducedMotion ? '0.15' : '0.6'};
         }
         
         .gradient-layer-3 {
@@ -85,38 +85,38 @@ export default function BrandedSidebar({ name }) {
             from 90deg at 70% 30%,
             var(--c3), var(--c5), var(--c2), var(--c4), var(--c1), var(--c3)
           );
-          animation: rotate-flow-3 30s linear infinite;
+          ${reducedMotion ? '' : 'animation: rotate-flow-3 30s linear infinite;'}
           transform-origin: 70% 30%;
-          opacity: 0.4;
+          opacity: ${reducedMotion ? '0.1' : '0.4'};
         }
         
-        @keyframes rotate-flow-1 {
+        ${reducedMotion ? '' : `@keyframes rotate-flow-1 {
           0%   { transform: rotate(0deg)   scale(1)   translate(0%, 0%);   filter: blur(25px); }
           25%  { transform: rotate(90deg)  scale(1.1) translate(-5%, 5%);  filter: blur(28px); }
           50%  { transform: rotate(180deg) scale(1)   translate(0%, 0%);   filter: blur(25px); }
           75%  { transform: rotate(270deg) scale(1.1) translate(5%, -5%);  filter: blur(28px); }
           100% { transform: rotate(360deg) scale(1)   translate(0%, 0%);   filter: blur(25px); }
-        }
+        }`}
         
-        @keyframes rotate-flow-2 {
+        ${reducedMotion ? '' : `@keyframes rotate-flow-2 {
           0%   { transform: rotate(0deg)   scale(1.2) translate(-10%, 10%); filter: blur(30px); }
           33%  { transform: rotate(120deg) scale(1)   translate(5%, -5%);   filter: blur(20px); }
           66%  { transform: rotate(240deg) scale(1.1) translate(-5%, 5%);   filter: blur(25px); }
           100% { transform: rotate(360deg) scale(1.2) translate(-10%, 10%); filter: blur(30px); }
-        }
+        }`}
         
-        @keyframes rotate-flow-3 {
+        ${reducedMotion ? '' : `@keyframes rotate-flow-3 {
           0%   { transform: rotate(0deg)   scale(0.9) translate(15%, -15%); filter: blur(20px); }
           40%  { transform: rotate(144deg) scale(1.3) translate(-10%, 10%); filter: blur(32px); }
           80%  { transform: rotate(288deg) scale(1)   translate(5%, -5%);   filter: blur(25px); }
           100% { transform: rotate(360deg) scale(0.9) translate(15%, -15%); filter: blur(20px); }
-        }
+        }`}
         
-        @media (prefers-reduced-motion: reduce) {
+        ${reducedMotion ? '' : `@media (prefers-reduced-motion: reduce) {
           .gradient-layer-1 { animation-duration: 60s; }
           .gradient-layer-2 { animation-duration: 80s; }
           .gradient-layer-3 { animation-duration: 100s; }
-        }
+        }`}
         
         /* Performance fallback for low-end devices */
         @media (max-resolution: 1dppx) {
@@ -172,10 +172,14 @@ export default function BrandedSidebar({ name }) {
 
       <div className="branded-overlay">
         <div className="gradient-container">
-          <div className="gradient-layer gradient-layer-1"></div>
-          <div className="gradient-layer gradient-layer-2"></div>
-          <div className="gradient-layer gradient-layer-3"></div>
-          
+          {reducedMotion ? null : (
+            <>
+              <div className="gradient-layer gradient-layer-1"></div>
+              <div className="gradient-layer gradient-layer-2"></div>
+              <div className="gradient-layer gradient-layer-3"></div>
+            </>
+          )}
+
           <div className="branded-content">
             <div className="welcome-text">
               {welcomeText}
