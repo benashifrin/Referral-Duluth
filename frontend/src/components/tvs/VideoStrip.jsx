@@ -1,119 +1,116 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { VIDEOS, extractYouTubeId } from '../../data/videos';
 
 export default function VideoStrip() {
-  const viewportRef = useRef(null);
+  const playerRef = useRef(null);
+  const [player, setPlayer] = useState(null);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
-  const items = useMemo(() => VIDEOS, []);
-
-  const open = (url) => {
-    if (window?.api?.openExternal) window.api.openExternal(url);
-    else window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const onWheel = useCallback((e) => {
-    const el = viewportRef.current;
-    if (!el) return;
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
+  // Initialize YouTube player
+  useEffect(() => {
+    if (!window.YT || !window.YT.Player) {
+      // Wait for API to load
+      window.onYouTubeIframeAPIReady = initPlayer;
+    } else {
+      initPlayer();
     }
   }, []);
+
+  const initPlayer = useCallback(() => {
+    if (playerRef.current && VIDEOS[currentVideoIndex]) {
+      const videoId = extractYouTubeId(VIDEOS[currentVideoIndex].link);
+      
+      const newPlayer = new window.YT.Player(playerRef.current, {
+        height: '100%',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          controls: 1,
+          modestbranding: 1,
+          rel: 0,
+          iv_load_policy: 3
+        },
+        events: {
+          onReady: (event) => {
+            setPlayer(event.target);
+            setIsPlayerReady(true);
+          }
+        }
+      });
+      
+      setPlayer(newPlayer);
+    }
+  }, [currentVideoIndex]);
+
+  const changeVideo = (index) => {
+    if (player && player.loadVideoById) {
+      const videoId = extractYouTubeId(VIDEOS[index].link);
+      player.loadVideoById(videoId);
+    }
+    setCurrentVideoIndex(index);
+  };
+
+  // Remove pause/resume functionality - video always plays
+
+  // Initialize player only once
+  useEffect(() => {
+    if (isPlayerReady && player && currentVideoIndex === 0) {
+      // Player is ready and this is the initial load
+      return;
+    }
+  }, [currentVideoIndex, isPlayerReady, player]);
 
   return (
     <>
       <style>{`
-        .video-strip-root {
-          position: fixed; left: 50%; bottom: 6vh; transform: translateX(-50%);
-          width: min(92vw, 1400px);
-          padding: 10px 12px;
-          border-radius: 16px;
-          background: rgba(0,0,0,0.00);
-          z-index: 12;
-          text-align: center;
+        .youtube-player-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 1;
         }
-        .heading {
-          display: inline-block;
-          margin-bottom: 10px;
-          color: #0b1324; font-weight: 800; font-size: 18px;
-          background: #ffffff;
-          border-radius: 9999px;
+        .video-selector {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 25;
+          background: rgba(0,0,0,0.7);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .video-selector select {
+          background: rgba(255,255,255,0.9);
+          border: none;
+          border-radius: 8px;
           padding: 8px 12px;
-          border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 6px 16px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
-        }
-        .video-strip-viewport {
-          overflow-x: auto; overflow-y: hidden;
-          scroll-behavior: smooth;
-          white-space: nowrap;
-          scrollbar-width: thin;            /* Firefox */
-          -ms-overflow-style: auto;         /* IE/Edge */
-        }
-        /* WebKit scrollbars */
-        .video-strip-viewport::-webkit-scrollbar { height: 8px; }
-        .video-strip-viewport::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.30); border-radius: 8px; }
-        .video-strip-viewport::-webkit-scrollbar-track { background: rgba(255,255,255,0.35); border-radius: 8px; }
-        .video-strip-track {
-          display: flex; align-items: flex-start; gap: 18px;
-          padding-bottom: 8px;
-        }
-        .card {
-          width: 240px; /* slightly smaller than before */
-          flex: 0 0 auto;
+          color: #0b1324;
+          font-weight: 600;
           cursor: pointer;
         }
-        .thumb-wrap {
-          position: relative;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
-          transform: translateY(0);
-          transition: transform 140ms ease, box-shadow 140ms ease;
-        }
-        .thumb-wrap:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2); }
-        .thumb {
-          display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
-          background: #000;
-        }
-        .play-badge {
-          position: absolute; right: 8px; bottom: 8px;
-          background: rgba(255,255,255,0.9);
-          color: #0b1324; font-weight: 900; font-size: 14px;
-          border-radius: 9999px; padding: 4px 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-          pointer-events: none;
-        }
-        .title {
-          margin-top: 10px; color: #0b1324; font-weight: 800; font-size: 18px;
-          text-align: center;
-          text-shadow: none;
-          background: #ffffff;
-          border-radius: 9999px;
-          padding: 8px 12px;
-          border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 6px 16px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+        .video-selector select:focus {
+          outline: 2px solid #ffffff;
         }
       `}</style>
 
-      <div className="video-strip-root">
-        <div className="heading">Prefer a Youtube video?</div>
-        <div className="video-strip-viewport" ref={viewportRef} onWheel={onWheel}>
-          <div className="video-strip-track">
-            {items.map((v, i) => {
-              const id = extractYouTubeId(v.link);
-              const thumb = id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
-              return (
-                <div className="card" key={`${v.title}-${i}`} onClick={() => open(v.link)}>
-                  <div className="thumb-wrap">
-                    <img className="thumb" src={thumb} alt={`${v.title} video`} loading="lazy" />
-                    <div className="play-badge">▶</div>
-                  </div>
-                  <div className="title">{v.title}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      <div className="youtube-player-container">
+        <div ref={playerRef}></div>
+      </div>
+
+      <div className="video-selector">
+        <select 
+          value={currentVideoIndex} 
+          onChange={(e) => changeVideo(parseInt(e.target.value))}
+        >
+          {VIDEOS.map((video, index) => (
+            <option key={index} value={index}>
+              {video.title}
+            </option>
+          ))}
+        </select>
       </div>
     </>
   );
