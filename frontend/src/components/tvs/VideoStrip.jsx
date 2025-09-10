@@ -47,6 +47,15 @@ export default function VideoStrip() {
         },
         events: {
           onReady: (event) => {
+            try {
+              // Ensure muted to satisfy autoplay policies and always start silent
+              event.target.mute();
+              event.target.setVolume(0);
+              // Kick playback explicitly in case browser blocks implicit autoplay
+              event.target.playVideo();
+            } catch (e) {
+              // no-op
+            }
             setPlayer(event.target);
             setIsPlayerReady(true);
           }
@@ -60,6 +69,12 @@ export default function VideoStrip() {
   const changeVideo = (index) => {
     if (player && player.loadVideoById) {
       const videoId = extractYouTubeId(VIDEOS[index].link);
+      try {
+        player.mute();
+        player.setVolume(0);
+      } catch (e) {
+        // no-op
+      }
       player.loadVideoById(videoId);
     }
     setCurrentVideoIndex(index);
