@@ -7,13 +7,21 @@ export default function VideoStrip() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
 
-  // Initialize YouTube player
+  // Initialize YouTube player with faster loading
   useEffect(() => {
+    const setupPlayer = () => {
+      if (window.YT && window.YT.Player) {
+        initPlayer();
+      } else {
+        // Retry after short delay if API not ready
+        setTimeout(setupPlayer, 100);
+      }
+    };
+
     if (!window.YT || !window.YT.Player) {
-      // Wait for API to load
-      window.onYouTubeIframeAPIReady = initPlayer;
+      window.onYouTubeIframeAPIReady = setupPlayer;
     } else {
-      initPlayer();
+      setupPlayer();
     }
   }, []);
 
@@ -30,7 +38,11 @@ export default function VideoStrip() {
           controls: 1,
           modestbranding: 1,
           rel: 0,
-          iv_load_policy: 3
+          iv_load_policy: 3,
+          playsinline: 1,
+          enablejsapi: 1,
+          vq: 'hd720',
+          preload: 'auto'
         },
         events: {
           onReady: (event) => {
