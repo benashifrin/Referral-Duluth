@@ -6,6 +6,7 @@ export default function VideoStrip() {
   const [player, setPlayer] = useState(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const currentIndexRef = useRef(0);
 
   // Initialize YouTube player with faster loading
   useEffect(() => {
@@ -58,6 +59,12 @@ export default function VideoStrip() {
             }
             setPlayer(event.target);
             setIsPlayerReady(true);
+          },
+          onStateChange: (event) => {
+            if (event.data === window.YT.PlayerState.ENDED) {
+              const next = (currentIndexRef.current + 1) % VIDEOS.length;
+              changeVideo(next);
+            }
           }
         }
       });
@@ -78,6 +85,7 @@ export default function VideoStrip() {
       player.loadVideoById(videoId);
     }
     setCurrentVideoIndex(index);
+    currentIndexRef.current = index;
   };
 
   // Remove pause/resume functionality - video always plays
