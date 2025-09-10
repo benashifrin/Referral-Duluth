@@ -53,10 +53,12 @@ export default function BrandedSidebar({ name }) {
           height: 200%;
           opacity: 0.8;
           mix-blend-mode: screen;
-          filter: blur(40px);
+          filter: blur(25px);
           backface-visibility: hidden;
           perspective: 1000px;
           will-change: transform;
+          contain: layout style paint;
+          transform: translate3d(0, 0, 0);
         }
         
         .gradient-layer-1 {
@@ -89,31 +91,42 @@ export default function BrandedSidebar({ name }) {
         }
         
         @keyframes rotate-flow-1 {
-          0%   { transform: rotate(0deg)   scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(0deg); }
-          25%  { transform: rotate(90deg)  scale(1.1) translate(-5%, 5%);  filter: blur(45px) hue-rotate(90deg); }
-          50%  { transform: rotate(180deg) scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(180deg); }
-          75%  { transform: rotate(270deg) scale(1.1) translate(5%, -5%);  filter: blur(45px) hue-rotate(270deg); }
-          100% { transform: rotate(360deg) scale(1)   translate(0%, 0%);   filter: blur(40px) hue-rotate(360deg); }
+          0%   { transform: rotate(0deg)   scale(1)   translate(0%, 0%);   filter: blur(25px); }
+          25%  { transform: rotate(90deg)  scale(1.1) translate(-5%, 5%);  filter: blur(28px); }
+          50%  { transform: rotate(180deg) scale(1)   translate(0%, 0%);   filter: blur(25px); }
+          75%  { transform: rotate(270deg) scale(1.1) translate(5%, -5%);  filter: blur(28px); }
+          100% { transform: rotate(360deg) scale(1)   translate(0%, 0%);   filter: blur(25px); }
         }
         
         @keyframes rotate-flow-2 {
-          0%   { transform: rotate(0deg)   scale(1.2) translate(-10%, 10%); filter: blur(50px) hue-rotate(0deg); }
-          33%  { transform: rotate(120deg) scale(1)   translate(5%, -5%);   filter: blur(35px) hue-rotate(120deg); }
-          66%  { transform: rotate(240deg) scale(1.1) translate(-5%, 5%);   filter: blur(45px) hue-rotate(240deg); }
-          100% { transform: rotate(360deg) scale(1.2) translate(-10%, 10%); filter: blur(50px) hue-rotate(360deg); }
+          0%   { transform: rotate(0deg)   scale(1.2) translate(-10%, 10%); filter: blur(30px); }
+          33%  { transform: rotate(120deg) scale(1)   translate(5%, -5%);   filter: blur(20px); }
+          66%  { transform: rotate(240deg) scale(1.1) translate(-5%, 5%);   filter: blur(25px); }
+          100% { transform: rotate(360deg) scale(1.2) translate(-10%, 10%); filter: blur(30px); }
         }
         
         @keyframes rotate-flow-3 {
-          0%   { transform: rotate(0deg)   scale(0.9) translate(15%, -15%); filter: blur(30px) hue-rotate(0deg); }
-          40%  { transform: rotate(144deg) scale(1.3) translate(-10%, 10%); filter: blur(55px) hue-rotate(144deg); }
-          80%  { transform: rotate(288deg) scale(1)   translate(5%, -5%);   filter: blur(40px) hue-rotate(288deg); }
-          100% { transform: rotate(360deg) scale(0.9) translate(15%, -15%); filter: blur(30px) hue-rotate(360deg); }
+          0%   { transform: rotate(0deg)   scale(0.9) translate(15%, -15%); filter: blur(20px); }
+          40%  { transform: rotate(144deg) scale(1.3) translate(-10%, 10%); filter: blur(32px); }
+          80%  { transform: rotate(288deg) scale(1)   translate(5%, -5%);   filter: blur(25px); }
+          100% { transform: rotate(360deg) scale(0.9) translate(15%, -15%); filter: blur(20px); }
         }
         
         @media (prefers-reduced-motion: reduce) {
           .gradient-layer-1 { animation-duration: 60s; }
           .gradient-layer-2 { animation-duration: 80s; }
           .gradient-layer-3 { animation-duration: 100s; }
+        }
+        
+        /* Performance fallback for low-end devices */
+        @media (max-resolution: 1dppx) {
+          .gradient-layer {
+            filter: blur(15px);
+            opacity: 0.6;
+          }
+          .gradient-layer-1 { animation-duration: 40s; }
+          .gradient-layer-2 { animation-duration: 60s; }
+          .gradient-layer-3 { animation-duration: 80s; }
         }
         
         .branded-content {
