@@ -671,7 +671,7 @@ const AdminDashboard = ({ user }) => {
                       <div className="text-sm font-medium text-gray-900">{u.name ? u.name : '—'}</div>
                       <div className="text-xs text-gray-500">{u.email}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatDateTime(u.created_at)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(u.created_at)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.referral_code}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{u.signed_up_by_staff || '—'}</td>
                     <td className="px-6 py-4">
