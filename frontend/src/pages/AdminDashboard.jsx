@@ -32,6 +32,14 @@ const AdminDashboard = ({ user }) => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [deletingUserId, setDeletingUserId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  // QR display state
+  const [searchQ, setSearchQ] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [qrEmail, setQrEmail] = useState('');
+  const [generatingQR, setGeneratingQR] = useState(false);
+  const [clearingQR, setClearingQR] = useState(false);
 
   const loadStats = async () => {
     try {
@@ -127,6 +135,66 @@ const AdminDashboard = ({ user }) => {
     };
     loadData();
   }, []);
+
+  // Search patients (by email/name)
+  const handleSearch = async (query) => {
+    setSearchQ(query);
+    setSelectedPatient(null);
+    setQrEmail('');
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      setSearching(true);
+      const res = await adminAPI.searchPatients(query.trim());
+      setSearchResults(res.results || []);
+    } catch (err) {
+      toast.error(handleAPIError(err));
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const selectPatient = (p) => {
+    setSelectedPatient(p);
+    setQrEmail(p.email || '');
+    setSearchResults([]);
+  };
+
+  const handleGenerateQR = async () => {
+    // Allow generating by either selected patient or typed email
+    if (!selectedPatient && !qrEmail) {
+      toast.error('Select a patient or enter an email');
+      return;
+    }
+    setGeneratingQR(true);
+    try {
+      const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail);
+      if (res?.landing_url) {
+        // Log landing URL for debugging/visibility in Chrome console
+        // Example: http://localhost:5001/r/welcome?t=...
+        console.log('[QR] Landing URL:', res.landing_url);
+      }
+      toast.success('QR sent to iPad display');
+    } catch (err) {
+      toast.error(handleAPIError(err));
+    } finally {
+      setGeneratingQR(false);
+    }
+  };
+
+  const handleClearQR = async () => {
+    setClearingQR(true);
+    try {
+      await adminAPI.clearQR();
+      toast.success('Cleared QR on iPad');
+    } catch (err) {
+      toast.error(handleAPIError(err));
+    } finally {
+      setClearingQR(false);
+    }
+  };
 
   const loadUsers = async (page = 1) => {
     try {
@@ -246,6 +314,67 @@ const AdminDashboard = ({ user }) => {
             />
           </div>
         )}
+
+        {/* QR Code Display (iPad) */}
+        <div className="card mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">QR Code Display</h2>
+            <div className="flex items-center gap-2">
+              <button onClick={handleClearQR} disabled={clearingQR} className="btn-secondary">
+                {clearingQR ? 'Clearing…' : 'Clear QR'}
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Find patient (name or email)</label>
+              <input
+                type="text"
+                value={searchQ}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="input-field w-full"
+                placeholder="Start typing to search…"
+              />
+              {searching && <div className="text-sm text-gray-500 mt-1">Searching…</div>}
+              {searchResults.length > 0 && (
+                <div className="mt-2 border rounded-md divide-y bg-white max-h-56 overflow-auto">
+                  {searchResults.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => selectPatient(p)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                    >
+                      <div className="text-sm font-medium text-gray-900">{p.name || '—'}</div>
+                      <div className="text-xs text-gray-600">{p.email}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email for magic link</label>
+              <input
+                type="email"
+                className="input-field w-full"
+                placeholder="patient@email.com"
+                value={qrEmail}
+                onChange={(e) => setQrEmail(e.target.value)}
+              />
+              <button
+                onClick={handleGenerateQR}
+                disabled={generatingQR || (!selectedPatient && !qrEmail)}
+                className="btn-primary mt-3"
+              >
+                {generatingQR ? 'Generating…' : 'Generate Referral QR'}
+              </button>
+              {selectedPatient && (
+                <div className="text-xs text-gray-500 mt-2">Selected: {selectedPatient.email} (code {selectedPatient.referral_code})</div>
+              )}
+              <div className="text-xs text-gray-500 mt-2">QR auto-hides after scan, admin clear, or 2 minutes.</div>
+            </div>
+          </div>
+        </div>
 
         {/* Referrals Management */}
         <div className="card">

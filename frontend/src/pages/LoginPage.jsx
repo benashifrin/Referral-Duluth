@@ -33,11 +33,17 @@ const LoginPage = ({ onLogin }) => {
     
     // Check if this is a demo email
     const demoEmails = ['demo@duluthdentalcenter.com', 'admin@dentaloffice.com', 'user@demo.com'];
-    const isDemoEmail = demoEmails.includes(email.toLowerCase().trim());
+    const normEmail = email.toLowerCase().trim();
+    const isDemoEmail = demoEmails.includes(normEmail);
     
     try {
       const res = await authAPI.sendOTP(email);
-      setNeedsStaff(!(res?.has_staff));
+      // Admin/demo accounts should not be forced to select staff
+      if (isDemoEmail) {
+        setNeedsStaff(false);
+      } else {
+        setNeedsStaff(!(res?.has_staff));
+      }
       setOtpSent(true);
       setStep(2);
       toast.success('OTP sent to your email');

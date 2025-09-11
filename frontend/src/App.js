@@ -12,6 +12,7 @@ import DemoPage from './pages/DemoPage';
 import TVsPage from './pages/TVsPage';
 import DDCInfo from './pages/DDCInfo';
 import ScanPage from './pages/ScanPage';
+import ReferralProgram from './pages/ReferralProgram';
 import './index.css';
 
 function App() {
@@ -23,7 +24,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/qrcode', '/scan', '/tvs', '/ddcinfo'];
+      const publicRoutes = ['/login', '/quote', '/qrcode', '/referralprogram', '/scan', '/tvs', '/ddcinfo'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
@@ -154,6 +155,12 @@ function App() {
             <Route 
               path="/qrcode" 
               element={<DemoPage />} 
+            />
+
+            {/* Referral Program iPad page */}
+            <Route
+              path="/referralprogram"
+              element={<ReferralProgram />}
             />
 
             {/* In-page Scanner (beeps only on detection) */}

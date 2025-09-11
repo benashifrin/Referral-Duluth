@@ -35,3 +35,79 @@
 ## Security & Configuration Tips
 - Never commit secrets. `.env` files are ignored; configure `backend/.env` (e.g., `SECRET_KEY`, SMTP creds). Align `REACT_APP_API_URL` with your backend port.
 - CORS origins are controlled in `backend/app.py`/env (`ALLOWED_ORIGINS`). Update when adding new domains.
+
+---
+
+# Recent Additions & Changes (Referral Program + Security)
+
+## iPad Display (/referralprogram)
+- New public page at `/referralprogram` that mirrors the visual style of `/qrcode` but updates dynamically via Socket.IO.
+- Default state shows:
+  - Headline: “Welcome to Duluth Dental Center”
+  - Subtext: “Ask us about our referral program”
+- When a QR is active, shows a QR image and pill text “Scan this code to view your referral code.”
+- Auto‑hides after scan, admin clear, or 2 minutes.
+- Console logs landing URLs when QR updates (to aid debugging).
+
+## Admin Dashboard → QR Code Display
+- Patient search (by name/email), override email before generating.
+- “Generate Referral QR” creates a short‑lived token (≤ 2m) mapped to the patient, generates a QR, emits a Socket.IO `new_qr` with `landing_url`, and emails a magic link.
+- “Clear QR” emits `qr_clear` to the display.
+- You can generate a QR by typed email even without selecting a search result; if the user doesn’t exist, it is created (admin‑only).
+- Console logs landing URLs on generation.
+
+## Backend (Flask)
+- Added Socket.IO integration for `new_qr` and `qr_clear` events.
+- Added `OnboardingToken` model with `jti`, `user_id`, `email_used`, `expires_at`, `used_at` (short‑lived, single‑use).
+- Routes:
+  - `POST /admin/generate_qr` → { qr_url (data URI), expires_at, landing_url } and emits `new_qr`.
+  - `POST /admin/clear_qr` → emits `qr_clear`.
+  - `GET /r/welcome` → validates token, marks used, clears QR, shows mobile‑optimized referral landing page.
+  - `GET /ref/<referral_code>` → rich referral share/preview page (separate from token landing).
+
+## Landing Page UX
+- Steps redesigned (Share / Friend Visits / You Earn) with mobile‑first cards, numbered progress dots, consistent outline icons.
+- Removed hero image block per request.
+- Referral link + copy button + FAQ preserved.
+
+## Local Dev Helper Scripts
+- `scripts/dev_local.sh`: picks a free backend port (5000–5010), sets dev env, starts backend, waits for `/health`, then starts CRA with matching `REACT_APP_API_URL`.
+- `scripts/stop_local.sh`: stops helper backend.
+- Dev env automatically logs QR landing URLs and sets `CUSTOM_DOMAIN` to `http://localhost:<port>` so QR links resolve locally.
+
+## Security Hardening
+- Logging:
+  - Redacts session cookie values from Set‑Cookie logs.
+  - No longer logs OTP codes or full raw request bodies with secrets.
+- Debug endpoints (`/debug/*`): return 404 in production.
+- CORS:
+  - In production, allowed origins come only from `ALLOWED_ORIGINS` env (comma‑separated) or fallback to `CUSTOM_DOMAIN`.
+  - Socket.IO uses the same effective origins.
+- CSRF‑like protection:
+  - For POST/PUT/PATCH/DELETE, checks Origin/Referer (enabled by default with `CSRF_STRICT=1`). Rejects disallowed origins.
+- XSS mitigation:
+  - User‑provided values (e.g., `name` on landing success) are HTML‑escaped before insertion.
+- Rate limiting (Flask‑Limiter):
+  - `/auth/send-otp`: 5/min per IP
+  - `/auth/verify-otp`: 10/min per IP
+  - `/api/referral/signup`: 5/min per IP
+- Cookies/HTTPS:
+  - In production, cookies are secure by default. Dev‑only shortcuts do not apply in prod.
+
+## Environment Variables (prod recommended)
+- `FLASK_ENV=production`
+- `ALLOWED_ORIGINS=https://bestdentistduluth.com,https://www.bestdentistduluth.com`
+- `CUSTOM_DOMAIN=https://bestdentistduluth.com`
+- `RESEND_API_KEY`, `EMAIL_USER` (verified sender/domain)
+- `SESSION_COOKIE_SAMESITE`: `None` if cross‑site (requires HTTPS), otherwise `Lax`
+- Do not set `DEV_INSECURE_COOKIES` or `DEV_ALLOW_FAKE_OTP` in production.
+
+## Socket.IO Deployment
+- For stable WebSockets in production run with eventlet/gevent workers (e.g., `gunicorn --worker-class eventlet -w 1 --chdir backend app:app`). The dev server may fall back to polling with Werkzeug.
+
+## Quick Test Plan
+- OTP endpoints rate‑limit and do not leak secrets in logs.
+- `/debug/*` returns 404 with `FLASK_ENV=production`.
+- Cross‑origin POSTs are blocked unless Origin is allowed.
+- Landing pages escape user text.
+- Admin QR flow: generate/clear QR, iPad page updates, and console logs landing URLs.

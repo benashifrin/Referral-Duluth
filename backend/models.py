@@ -201,3 +201,28 @@ class QREvent(db.Model):
             'kind': self.kind,
             'created_at': self.created_at.isoformat(),
         }
+
+class OnboardingToken(db.Model):
+    """Short-lived token that links a user (patient) to a magic onboarding URL.
+    The token string itself must not include PHI; we store mapping in DB.
+    """
+    jti = db.Column(db.String(64), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    email_used = db.Column(db.String(120), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('onboarding_tokens', lazy='dynamic'))
+
+    def __init__(self, user_id, email_used=None, ttl_seconds=120):
+        self.jti = uuid.uuid4().hex
+        self.user_id = user_id
+        self.email_used = email_used
+        self.expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+
+    def is_valid(self):
+        return (self.used_at is None) and (datetime.utcnow() < self.expires_at)
+
+    def mark_used(self):
+        self.used_at = datetime.utcnow()

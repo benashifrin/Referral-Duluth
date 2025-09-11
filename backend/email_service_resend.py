@@ -128,5 +128,40 @@ class EmailService:
             print(f"Error sending referral notification: {str(e)}")
             return False
 
+    def send_magic_link(self, recipient_email: str, url: str) -> bool:
+        """Send a short-lived magic link. No PII in URL; link expires quickly."""
+        try:
+            html = f"""
+            <html>
+              <body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">
+                <div style=\"background: linear-gradient(135deg, #3EB489 0%, #1E90FF 100%); padding: 24px; border-radius: 10px; color: white; text-align: center;\">
+                  <h2 style=\"margin: 0;\">Duluth Dental Center</h2>
+                  <p style=\"margin: 8px 0 0; opacity: .9;\">Referral Program Access</p>
+                </div>
+                <div style=\"padding: 24px;\">
+                  <p style=\"color: #333;\">Tap the button to view your referral details. This link expires in about 2 minutes.</p>
+                  <p style=\"margin: 24px 0;\">
+                    <a href=\"{url}\" style=\"display: inline-block; background: #3EB489; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;\">Open Referral Page</a>
+                  </p>
+                  <p style=\"color: #666; font-size: 12px;\">If the button does not work, copy and paste this link into your browser:<br/>
+                  <span style=\"word-break: break-all;\">{url}</span></p>
+                </div>
+              </body>
+            </html>
+            """
+            text = f"Open your referral page (expires soon):\n{url}"
+
+            resend.Emails.send({
+                "from": self.from_email,
+                "to": [recipient_email],
+                "subject": "Your Duluth Dental Center referral link",
+                "html": html,
+                "text": text,
+            })
+            return True
+        except Exception as e:
+            print(f"Error sending magic link: {str(e)}")
+            return False
+
 # Create a global instance
 email_service = EmailService()

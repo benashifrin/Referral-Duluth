@@ -10,6 +10,7 @@ export const API_URL = process.env.REACT_APP_API_URL ||
 console.log('[API Debug] API_URL:', API_URL);
 console.log('[API Debug] NODE_ENV:', process.env.NODE_ENV);
 console.log('[API Debug] REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('[API Debug] window.origin:', typeof window !== 'undefined' ? window.location.origin : 'n/a');
 
 // Detect if running on mobile device
 const isMobile = () => {
@@ -29,10 +30,20 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Flask uses session cookies, no need for tokens
+    // Debug outbound requests
+    try {
+      console.debug('[API Request]', {
+        method: config.method,
+        url: config.url,
+        baseURL: config.baseURL,
+        withCredentials: config.withCredentials,
+        headers: { 'Content-Type': config.headers?.['Content-Type'] },
+      });
+    } catch {}
     return config;
   },
   (error) => {
+    console.error('[API Request Error]', error.message);
     return Promise.reject(error);
   }
 );
@@ -40,10 +51,24 @@ api.interceptors.request.use(
 // Response interceptor with mobile retry logic
 api.interceptors.response.use(
   (response) => {
+    // Debug successful responses
+    try {
+      console.debug('[API Response]', response?.status, response?.config?.url);
+    } catch {}
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
+    try {
+      console.error('[API Error]', {
+        message: error.message,
+        url: originalRequest?.url,
+        baseURL: originalRequest?.baseURL,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+      });
+    } catch {}
 
     // Handle unauthorized access
     if (error.response?.status === 401) {
@@ -164,6 +189,27 @@ export const adminAPI = {
     const response = await api.get('/admin/export', {
       responseType: 'blob',
     });
+    return response.data;
+  },
+
+  // Patients search (by email/name)
+  searchPatients: async (q) => {
+    const params = new URLSearchParams({ q });
+    const response = await api.get(`/admin/search?${params}`);
+    return response.data;
+  },
+
+  // Generate short-lived referral QR (returns data URL and emits to iPad)
+  generateReferralQR: async (userId, email) => {
+    const payload = { user_id: userId };
+    if (email) payload.email = email;
+    const response = await api.post('/admin/generate_qr', payload);
+    return response.data;
+  },
+
+  // Clear iPad QR
+  clearQR: async () => {
+    const response = await api.post('/admin/clear_qr');
     return response.data;
   },
 };

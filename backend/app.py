@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 import logging
 import sys
 import uuid
+import base64
+from io import BytesIO
 try:
     from email_validator import validate_email, EmailNotValidError
 except ImportError:
@@ -23,9 +25,12 @@ except ImportError:
 import csv
 from io import StringIO
 from sqlalchemy import inspect, text
+from flask_socketio import SocketIO, emit, join_room
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Import our models and services
-from models import db, User, Referral, OTPToken, ReferralClick, QREvent
+from models import db, User, Referral, OTPToken, ReferralClick, QREvent, OnboardingToken
 from email_service_resend import email_service
 
 # Load environment variables
@@ -42,17 +47,28 @@ logger = logging.getLogger(__name__)
 
 # Create Flask app
 app = Flask(__name__)
+PRODUCTION = os.getenv('FLASK_ENV') == 'production'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dental-referral-secret-key')
 # Use DATABASE_URL from environment or fallback to SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Mobile-compatible session configuration
-# Remove complex session settings that prevent Set-Cookie headers
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
+# Configure cookie security with dev overrides to allow local HTTP sessions
+def _bool_env(name, default=False):
+    v = os.getenv(name)
+    if v is None:
+        return default
+    return str(v).strip().lower() in ('1', 'true', 'yes', 'on')
+
+# Default: secure in production, but allow opt-out via DEV_INSECURE_COOKIES=1
+default_secure = (os.getenv('FLASK_ENV') == 'production') and not _bool_env('DEV_INSECURE_COOKIES', False)
+app.config['SESSION_COOKIE_SECURE'] = _bool_env('SESSION_COOKIE_SECURE', default_secure)
+default_samesite = 'None' if app.config['SESSION_COOKIE_SECURE'] else 'Lax'
+# Allow override via env; otherwise use computed default
+app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', default_samesite)
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # No JavaScript access
 app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Critical for mobile cross-origin
 # Optional: allow overriding cookie domain when served on a subdomain like api.bestdentistduluth.com
 cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN')
 if cookie_domain:
@@ -62,6 +78,8 @@ if cookie_domain:
 
 # Initialize extensions
 db.init_app(app)
+limiter = Limiter(get_remote_address, app=app, default_limits=None)
+
 
 # Log session interface being used
 logger.info(f"Flask session interface: {type(app.session_interface).__name__}")
@@ -93,12 +111,21 @@ def canonicalize_staff(value: str) -> str:
 # CORS configuration
 # Define allowed origins (can be overridden via ALLOWED_ORIGINS env, comma-separated)
 default_allowed_origins = [
-    'http://localhost:3000',
+    # Local development (CRA default + common fallbacks)
+    'http://localhost:3000', 'http://127.0.0.1:3000',
+    'http://localhost:5000', 'http://127.0.0.1:5000',
+    'http://localhost:5001', 'http://127.0.0.1:5001',
+    'http://localhost:5002', 'http://127.0.0.1:5002',
+    'http://localhost:5003', 'http://127.0.0.1:5003',
+    'http://localhost:5004', 'http://127.0.0.1:5004',
+    'http://localhost:5005', 'http://127.0.0.1:5005',
+    # Production domains
     'https://bestdentistduluth.com',
     'https://www.bestdentistduluth.com',
 ]
 extra_allowed = [o.strip() for o in os.getenv('ALLOWED_ORIGINS', '').split(',') if o.strip()]
 ALLOWED_ORIGINS = default_allowed_origins + extra_allowed
+logger.info(f"ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
 
 def is_allowed_origin(origin: str) -> bool:
     if not origin:
@@ -116,16 +143,58 @@ def is_allowed_origin(origin: str) -> bool:
             return True
     return False
 
+def _compute_allowed_origins():
+    if PRODUCTION:
+        env_origins = [o.strip() for o in os.getenv('ALLOWED_ORIGINS', '').split(',') if o.strip()]
+        if env_origins:
+            return env_origins
+        cd = os.getenv('CUSTOM_DOMAIN')
+        if cd:
+            cd = cd.rstrip('/')
+            return [cd]
+    return ALLOWED_ORIGINS
+
+EFFECTIVE_ALLOWED_ORIGINS = _compute_allowed_origins()
+
 # Configure Flask-CORS (explicit origins; credentials enabled)
 CORS(
     app,
     supports_credentials=True,
-    origins=ALLOWED_ORIGINS,
+    origins=EFFECTIVE_ALLOWED_ORIGINS,
     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 )
 
+# Initialize Socket.IO (threading fallback works under sync Gunicorn; for websockets use eventlet/gevent)
+socketio = SocketIO(cors_allowed_origins=EFFECTIVE_ALLOWED_ORIGINS or '*', async_mode='threading')
+socketio.init_app(app, cors_allowed_origins=EFFECTIVE_ALLOWED_ORIGINS or '*')
+
 # Request tracking and mobile detection middleware
+def _cors_preflight_response(origin: str):
+    """Craft a permissive CORS preflight response when origin is allowed."""
+    resp = make_response('', 204)
+    if origin and is_allowed_origin(origin):
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+        req_method = request.headers.get('Access-Control-Request-Method', 'GET, POST, PUT, DELETE, OPTIONS')
+        resp.headers['Access-Control-Allow-Methods'] = req_method
+        resp.headers.add('Vary', 'Origin')
+        logger.info(f"[CORS] Preflight OK for origin={origin} path={request.path} methods={req_method}")
+    else:
+        logger.warning(f"[CORS] Preflight blocked for origin={origin} path={request.path}")
+    return resp
+
+def _origin_allowed_for_csrf():
+    origin = request.headers.get('Origin')
+    if not origin:
+        ref = request.headers.get('Referer', '')
+        return (not PRODUCTION) or (request.host in ref)
+    return is_allowed_origin(origin)
+
+def _is_state_changing():
+    return request.method in ('POST', 'PUT', 'DELETE', 'PATCH')
+
 @app.before_request
 def before_request():
     """Add request tracking and mobile detection to all requests"""
@@ -137,8 +206,19 @@ def before_request():
     request.is_mobile = any(mobile in user_agent.lower() for mobile in 
                           ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
     
-    # Log all requests with mobile detection
-    logger.info(f"[{request.id}] {request.method} {request.path} - Mobile: {request.is_mobile} - IP: {request.remote_addr}")
+    # Log all requests with mobile detection and origin
+    origin = request.headers.get('Origin')
+    ac_req_method = request.headers.get('Access-Control-Request-Method')
+    logger.info(f"[{request.id}] {request.method} {request.path} - Mobile: {request.is_mobile} - IP: {request.remote_addr} - Origin: {origin} - ACRM: {ac_req_method}")
+
+    # Handle CORS preflight explicitly (in addition to Flask-CORS), to ensure header presence
+    if request.method == 'OPTIONS':
+        return _cors_preflight_response(origin)
+    # CSRF-like Origin check
+    if _is_state_changing() and os.getenv('CSRF_STRICT', '1').lower() in ('1', 'true', 'yes', 'on'):
+        if not _origin_allowed_for_csrf():
+            logger.warning(f"[{request.id}] CSRF ORIGIN BLOCKED - origin={origin} referer={request.headers.get('Referer')}")
+            return jsonify({'error': 'Origin not allowed'}), 403
     
     # Log detailed info for authentication requests
     if '/auth/' in request.path:
@@ -160,6 +240,9 @@ def after_request(response):
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         # Ensure caches/CDNs vary by Origin
         response.headers.add('Vary', 'Origin')
+        logger.info(f"[{request_id}] CORS OK - {origin} {request.method} {request.path}")
+    elif origin:
+        logger.warning(f"[{request_id}] CORS BLOCKED - {origin} {request.method} {request.path}")
 
     logger.info(f"[{request_id}] RESPONSE - Status: {response.status_code}")
     
@@ -169,22 +252,18 @@ def after_request(response):
         
         # Log detailed cookie headers for mobile debugging
         if 'Set-Cookie' in response.headers:
-            set_cookie_header = response.headers.get('Set-Cookie')
+            set_cookie_header = response.headers.get('Set-Cookie', '')
+            # Redact sensitive cookie value
+            masked = set_cookie_header
+            if 'session=' in masked:
+                try:
+                    parts = masked.split('; ')
+                    parts[0] = 'session=<redacted>'
+                    masked = '; '.join(parts)
+                except Exception:
+                    masked = 'session=<redacted>'
             logger.info(f"[{request_id}] AUTH RESPONSE - Setting cookies for mobile: {is_mobile}")
-            logger.info(f"[{request_id}] AUTH RESPONSE - Cookie header: {set_cookie_header}")
-            
-            # Parse and log cookie attributes
-            if 'session=' in set_cookie_header:
-                logger.info(f"[{request_id}] AUTH RESPONSE - Session cookie detected")
-                if 'Secure' in set_cookie_header:
-                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie is Secure (HTTPS only)")
-                if 'HttpOnly' in set_cookie_header:
-                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie is HttpOnly")
-                if 'SameSite' in set_cookie_header:
-                    samesite_match = set_cookie_header.split('SameSite=')[1].split(';')[0] if 'SameSite=' in set_cookie_header else 'Not set'
-                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie SameSite: {samesite_match}")
-                else:
-                    logger.info(f"[{request_id}] AUTH RESPONSE - Cookie SameSite: Not specified (Flask default)")
+            logger.info(f"[{request_id}] AUTH RESPONSE - Cookie attributes: {masked}")
         else:
             logger.warning(f"[{request_id}] AUTH RESPONSE - No Set-Cookie header found!")
     
@@ -331,6 +410,30 @@ def qr_stream():
     resp.headers['Cache-Control'] = 'no-cache'
     resp.headers['X-Accel-Buffering'] = 'no'  # nginx proxies
     return resp
+
+# ---------- Socket.IO: QR display channel ----------
+@socketio.on('connect')
+def on_connect():
+    try:
+        sid = None
+        try:
+            from flask import request as _req
+            sid = getattr(_req, 'sid', None)
+        except Exception:
+            pass
+        logger.info(f"[SocketIO] connect sid={sid}")
+        emit('connected', {'ok': True})
+    except Exception as e:
+        logger.warning(f"[SocketIO] connect handler error: {e}")
+
+@socketio.on('join_qr_display')
+def on_join_qr_display():
+    try:
+        join_room('qr_display')
+        logger.info(f"[SocketIO] join room=qr_display")
+        emit('joined', {'room': 'qr_display'})
+    except Exception as e:
+        logger.warning(f"[SocketIO] join_qr_display error: {e}")
     
     # Debug session interface after app context is created
     logger.info("=" * 50)
@@ -388,6 +491,8 @@ def health_check():
 @app.route('/debug/email-config')
 def debug_email_config():
     """Debug endpoint to check email configuration"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     from email_service_resend import email_service
     import resend
     return jsonify({
@@ -404,6 +509,8 @@ def debug_email_config():
 @app.route('/debug/network-test')
 def test_railway_network():
     """Test Railway network connectivity"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     import socket
     import smtplib
     results = {}
@@ -448,6 +555,8 @@ def test_railway_network():
 @app.route('/debug/test-resend')
 def test_resend():
     """Test Resend email service"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     from email_service_resend import email_service
     import resend
     
@@ -481,6 +590,8 @@ def test_resend():
 @app.route('/debug/session-status')
 def debug_session_status():
     """Debug endpoint to check session status (especially for mobile)"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     user_agent = request.headers.get('User-Agent', 'Unknown')
     is_mobile = any(mobile_indicator in user_agent.lower() for mobile_indicator in 
                    ['mobile', 'android', 'iphone', 'ipad', 'blackberry', 'windows phone'])
@@ -517,9 +628,32 @@ def debug_session_status():
     
     return jsonify(session_info)
 
+@app.route('/debug/config')
+def debug_config():
+    """Expose key runtime configuration for debugging (no secrets)."""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify({
+        'allowed_origins': ALLOWED_ORIGINS,
+        'session': {
+            'secure': app.config.get('SESSION_COOKIE_SECURE'),
+            'httponly': app.config.get('SESSION_COOKIE_HTTPONLY'),
+            'samesite': app.config.get('SESSION_COOKIE_SAMESITE'),
+            'domain': app.config.get('SESSION_COOKIE_DOMAIN'),
+            'permanent_lifetime': app.config.get('PERMANENT_SESSION_LIFETIME', 'default'),
+        },
+        'env': {
+            'FLASK_ENV': os.getenv('FLASK_ENV'),
+            'DEV_INSECURE_COOKIES': os.getenv('DEV_INSECURE_COOKIES'),
+            'CUSTOM_DOMAIN': os.getenv('CUSTOM_DOMAIN'),
+        }
+    })
+
 @app.route('/debug/mobile-session-test', methods=['POST'])
 def debug_mobile_session_test():
     """Special endpoint to test mobile session immediately after login"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     user_agent = request.headers.get('User-Agent', '')
     is_mobile = any(mobile in user_agent.lower() for mobile in ['iphone', 'android', 'mobile'])
     
@@ -549,6 +683,8 @@ def debug_mobile_session_test():
 @app.route('/debug/mobile-session-live', methods=['GET'])
 def debug_mobile_session_live():
     """Real-time mobile session debugging endpoint"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     request_id = getattr(request, 'id', 'unknown')
     user_agent = request.headers.get('User-Agent', '')
     is_mobile = getattr(request, 'is_mobile', False)
@@ -586,6 +722,8 @@ def debug_mobile_session_live():
 @app.route('/debug/mobile-error', methods=['POST'])
 def debug_mobile_error():
     """Endpoint for frontend to report mobile-specific errors"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     request_id = getattr(request, 'id', 'unknown')
     is_mobile = getattr(request, 'is_mobile', False)
     
@@ -614,6 +752,8 @@ def debug_mobile_error():
 @app.route('/debug/mobile-cookie-test', methods=['GET', 'POST'])
 def debug_mobile_cookie_test():
     """Test cookie setting and retrieval for mobile browsers"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     request_id = getattr(request, 'id', 'unknown')
     is_mobile = getattr(request, 'is_mobile', False)
     
@@ -657,6 +797,8 @@ def debug_mobile_cookie_test():
 @app.route('/debug/manual-cookie-test', methods=['GET', 'POST'])
 def debug_manual_cookie_test():
     """Test manual cookie setting bypassing Flask sessions entirely"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     request_id = getattr(request, 'id', 'unknown')
     is_mobile = getattr(request, 'is_mobile', False)
     
@@ -707,6 +849,8 @@ def debug_manual_cookie_test():
 @app.route('/debug/simple-cookie-test')
 def debug_simple_cookie_test():
     """Minimal cookie test - just set and check a simple cookie"""
+    if os.getenv('FLASK_ENV') == 'production':
+        return jsonify({'error': 'Not found'}), 404
     request_id = getattr(request, 'id', 'unknown')
     is_mobile = getattr(request, 'is_mobile', False)
     
@@ -786,6 +930,7 @@ def require_admin():
 
 # Authentication Routes
 @app.route('/auth/send-otp', methods=['POST'])
+@limiter.limit("5 per minute")
 def send_otp():
     """Send OTP to user's email"""
     request_id = getattr(request, 'id', 'unknown')
@@ -821,24 +966,58 @@ def send_otp():
         
         # Send email (in production, you'd want to do this asynchronously)
         try:
-            logger.info(f"[{request_id}] OTP EMAIL SENDING - To: {email}, Token: {otp_token.token}, Service: {email_service.from_email}")
+            logger.info(f"[{request_id}] OTP EMAIL SENDING - To: {email}, Service: {email_service.from_email}")
             success = email_service.send_otp_email(email, otp_token.token)
             logger.info(f"[{request_id}] OTP EMAIL RESULT - Success: {success}")
-            
+
+            # Return success if email was sent
             if success:
-                # Include hint whether this email already has a staff member on file
                 existing_user = User.query.filter_by(email=email).first()
                 has_staff = bool(existing_user and getattr(existing_user, 'signed_up_by_staff', None))
                 return jsonify({
                     'message': 'OTP sent to your email',
                     'email': email,
-                    'expires_in': 600,  # 10 minutes in seconds
+                    'expires_in': 600,
                     'has_staff': has_staff
                 })
-            else:
-                return jsonify({'error': 'Failed to send OTP. Please try again.'}), 500
+
+            # Fallback for local/dev or demo accounts: allow proceeding even if email failed
+            demo_users = {
+                'demo@duluthdentalcenter.com': '123456',
+                'admin@dentaloffice.com': '123456',
+                'user@demo.com': '123456'
+            }
+            allow_fake = (os.getenv('FLASK_ENV') != 'production') and (os.getenv('DEV_ALLOW_FAKE_OTP') in ('1', 'true', 'True', 'yes', 'on'))
+            if email.lower() in demo_users or allow_fake:
+                logger.warning(f"[{request_id}] OTP EMAIL FALLBACK - Proceeding without email (demo/dev). allow_fake={allow_fake}")
+                existing_user = User.query.filter_by(email=email).first()
+                has_staff = bool(existing_user and getattr(existing_user, 'signed_up_by_staff', None))
+                return jsonify({
+                    'message': 'OTP issued (dev mode) — use your code',
+                    'email': email,
+                    'expires_in': 600,
+                    'has_staff': has_staff
+                })
+
+            return jsonify({'error': 'Failed to send OTP. Please try again.'}), 500
         except Exception as e:
-            print(f"Error in send_otp endpoint: {str(e)}")
+            logger.error(f"[{request_id}] OTP EMAIL EXCEPTION - {str(e)}")
+            # Same fallback for dev/demo
+            demo_users = {
+                'demo@duluthdentalcenter.com': '123456',
+                'admin@dentaloffice.com': '123456',
+                'user@demo.com': '123456'
+            }
+            allow_fake = (os.getenv('FLASK_ENV') != 'production') and (os.getenv('DEV_ALLOW_FAKE_OTP') in ('1', 'true', 'True', 'yes', 'on'))
+            if email.lower() in demo_users or allow_fake:
+                existing_user = User.query.filter_by(email=email).first()
+                has_staff = bool(existing_user and getattr(existing_user, 'signed_up_by_staff', None))
+                return jsonify({
+                    'message': 'OTP issued (dev mode) — use your code',
+                    'email': email,
+                    'expires_in': 600,
+                    'has_staff': has_staff
+                })
             return jsonify({'error': f'Email service error: {str(e)}'}), 500
             
     except Exception as e:
@@ -847,6 +1026,7 @@ def send_otp():
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/auth/verify-otp', methods=['POST'])
+@limiter.limit("10 per minute")
 def verify_otp():
     """Verify OTP and log in user"""
     request_id = getattr(request, 'id', 'unknown')
@@ -860,7 +1040,8 @@ def verify_otp():
         except Exception:
             raw_body = '<unavailable>'
         logger.info(f"[{request_id}] OTP VERIFY HEADERS: {dict(request.headers)}")
-        logger.info(f"[{request_id}] OTP VERIFY RAW BODY (truncated): {raw_body}")
+        # Avoid logging raw bodies with secrets in production
+        # logger.info(f"[{request_id}] OTP VERIFY RAW BODY (truncated): {raw_body}")
 
         data = request.get_json(silent=True)
         if not isinstance(data, dict) or not data:
@@ -896,7 +1077,7 @@ def verify_otp():
         logger.info(f"[{request_id}] OTP VERIFY - Staff raw values: {staff_raw_values}")
         logger.info(f"[{request_id}] OTP VERIFY - Staff normalized: '{staff}' (allowed: {STAFF_MEMBERS})")
         
-        logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Token: {token}, Mobile: {is_mobile}")
+        logger.info(f"[{request_id}] OTP VERIFY START - Email: {email}, Mobile: {is_mobile}")
         logger.info(f"[{request_id}] OTP VERIFY START - Current session keys: {list(session.keys())}")
         logger.info(f"[{request_id}] OTP VERIFY START - Request method: {request.method}")
         logger.info(f"[{request_id}] OTP VERIFY START - Content type: {request.content_type}")
@@ -949,6 +1130,22 @@ def verify_otp():
             db.session.commit()
         else:
             logger.info(f"[{request_id}] USER FOUND - Existing user {email} (ID: {user.id})")
+
+        # Ensure configured admins are marked as admin (so frontend gets correct role)
+        try:
+            configured_admins = []
+            admins_env = os.getenv('ADMIN_EMAILS')
+            if admins_env:
+                configured_admins = [e.strip().lower() for e in admins_env.split(',') if e.strip()]
+            else:
+                configured_admins = [os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com').strip().lower()]
+
+            if email.lower() in configured_admins and not user.is_admin:
+                user.is_admin = True
+                db.session.commit()
+                logger.info(f"[{request_id}] USER ROLE - Promoted to admin: {email}")
+        except Exception as _e:
+            logger.warning(f"[{request_id}] USER ROLE - Admin promotion check failed: {_e}")
         # If a name was provided and user has no name yet, save it
         try:
             if name and not getattr(user, 'name', None):
@@ -1037,8 +1234,7 @@ def verify_otp():
             logger.error(f"[{request_id}] MANUAL SESSION SAVE - Failed: {str(save_error)}")
             if is_mobile:
                 logger.error(f"[{request_id}] MOBILE CRITICAL - Session save failed: {str(save_error)}")
-            
-            # Fallback: manually set session cookie
+            # Fallback: manually set session cookie (respect current config)
             try:
                 from itsdangerous import URLSafeTimedSerializer
                 serializer = URLSafeTimedSerializer(app.secret_key)
@@ -1046,13 +1242,13 @@ def verify_otp():
                 response.set_cookie(
                     'session',
                     cookie_val,
-                    max_age=86400,
-                    secure=True,
-                    httponly=True,
-                    samesite='None',
+                    max_age=app.config.get('SESSION_COOKIE_MAX_AGE', 86400),
+                    secure=app.config.get('SESSION_COOKIE_SECURE', False),
+                    httponly=app.config.get('SESSION_COOKIE_HTTPONLY', True),
+                    samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax'),
                     domain=app.config.get('SESSION_COOKIE_DOMAIN')
                 )
-                logger.info(f"[{request_id}] FALLBACK SESSION COOKIE - Manually set session cookie")
+                logger.info(f"[{request_id}] FALLBACK SESSION COOKIE - Manually set session cookie with samesite={app.config.get('SESSION_COOKIE_SAMESITE')}, secure={app.config.get('SESSION_COOKIE_SECURE')}")
             except Exception as fallback_error:
                 logger.error(f"[{request_id}] FALLBACK SESSION COOKIE - Failed: {str(fallback_error)}")
 
@@ -1100,11 +1296,20 @@ def get_dashboard(user):
         recent_referrals = user.referrals_made.order_by(Referral.created_at.desc()).limit(5).all()
         
         # Use custom domain for referral links
-        domain = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
-        if not domain.startswith('http'):
-            domain = f"https://{domain}"
+        # Select domain for QR URL: prefer CUSTOM_DOMAIN, else derive from the current request host
+        domain = os.getenv('CUSTOM_DOMAIN')
+        if not domain:
+            try:
+                domain = request.host_url  # e.g., http://localhost:5001/
+            except Exception:
+                domain = 'http://localhost:5001/'
+        # Ensure scheme and trailing slash
+        if not (domain.startswith('http://') or domain.startswith('https://')):
+            # Default to http for local dev if no scheme provided
+            domain = f"http://{domain}"
         if not domain.endswith('/'):
             domain += '/'
+        logger.info(f"[QR] Using domain for QR: {domain}")
             
         dashboard_data = {
             'user': user.to_dict(),
@@ -1290,11 +1495,13 @@ def track_referral_click(referral_code):
                         
                         const result = await response.json();
                         if (response.ok) {{
+                            const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}}[c]));
+                            const safeName = escapeHtml(name);
                             document.querySelector('.form-container').innerHTML = `
                                 <div style="text-align: center; padding: 40px 20px;">
                                     <div style="background: #dcfce7; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 2px solid #16a34a;">
                                         <h2 style="color: #16a34a; margin-bottom: 15px;">✅ Step 1 Complete!</h2>
-                                        <p style="font-size: 16px; color: #166534; margin: 0;">Thank you, ${{name}}! We've received your information.</p>
+                                        <p style="font-size: 16px; color: #166534; margin: 0;">Thank you, ${{safeName}}! We've received your information.</p>
                                     </div>
                                     
                                     <div style="background: #0891b2; color: white; padding: 30px; border-radius: 15px; margin: 20px 0;">
@@ -1332,6 +1539,7 @@ def track_referral_click(referral_code):
         return "Error processing referral link", 500
 
 @app.route('/api/referral/signup', methods=['POST'])
+@limiter.limit("5 per minute")
 def signup_referral():
     """Process referral signup"""
     try:
@@ -1477,6 +1685,282 @@ def admin_list_users(user):
     except Exception as e:
         print(f"Error listing users: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/search', methods=['GET'])
+@require_admin()
+def admin_search_users(user):
+    """Lightweight search for patients by name or email.
+    Returns a compact list for the QR section.
+    """
+    try:
+        q = (request.args.get('q') or '').strip()
+        if not q:
+            return jsonify({'results': []})
+
+        # Search by email or name (if present)
+        query = User.query
+        q_like = f"%{q}%"
+        query = query.filter((User.email.ilike(q_like)) | (User.name.ilike(q_like)))
+        results = query.order_by(User.created_at.desc()).limit(20).all()
+        return jsonify({'results': [
+            {
+                'id': u.id,
+                'email': u.email,
+                'name': getattr(u, 'name', None),
+                'referral_code': u.referral_code,
+            }
+        for u in results]})
+    except Exception as e:
+        logger.warning(f"/admin/search failed: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/generate_qr', methods=['POST'])
+@require_admin()
+def admin_generate_qr(user):
+    """Create a short-lived onboarding token, emit QR to iPad, and email magic link."""
+    try:
+        data = request.get_json() or {}
+        user_id = data.get('user_id') or data.get('patient_id')
+        email_override = (data.get('email') or '').strip().lower() or None
+        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override}")
+        # Resolve target user either by explicit user_id or by email
+        target = None
+        if user_id:
+            target = User.query.get_or_404(int(user_id))
+        
+        chosen_email = email_override
+        # If no explicit email override, fall back to target's email (if present)
+        if not chosen_email and target:
+            chosen_email = target.email
+        
+        # Validate that we have at least an email or a user target
+        if not target and not chosen_email:
+            return jsonify({'error': 'user_id or email is required'}), 400
+        
+        # If target not provided, resolve or create by email
+        if not target and chosen_email:
+            # Validate email format before searching/creating
+            try:
+                validate_email(chosen_email)
+            except EmailNotValidError:
+                return jsonify({'error': 'Invalid email address'}), 400
+            target = User.query.filter_by(email=chosen_email.lower()).first()
+            if not target:
+                target = User(email=chosen_email.lower())
+                db.session.add(target)
+                db.session.commit()
+                logger.info(f"[QR] Created user {target.id} for email {chosen_email}")
+
+        # Validate email format
+        try:
+            validate_email(chosen_email)
+        except EmailNotValidError:
+            return jsonify({'error': 'Invalid email address'}), 400
+
+        # Create token (<= 2 minutes)
+        token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
+        db.session.add(token)
+        db.session.commit()
+        logger.info(f"[QR] token created jti={token.jti} user_id={target.id} expires_at={token.expires_at.isoformat()}")
+
+        # Build public URL for token
+        domain = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
+        if not domain.startswith('http'):
+            domain = f"https://{domain}"
+        if not domain.endswith('/'):
+            domain += '/'
+        url = f"{domain}r/welcome?t={token.jti}"
+        logger.info(f"[QR] URL for token jti={token.jti}: {url}")
+
+        # Generate QR code (PNG) and convert to data URL
+        try:
+            import qrcode
+            img = qrcode.make(url)
+            bio = BytesIO()
+            img.save(bio, format='PNG')
+            png_bytes = bio.getvalue()
+            data_uri = 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
+            logger.info(f"[QR] data URL generated bytes={len(png_bytes)}")
+        except Exception as e:
+            logger.error(f"[QR] Failed to generate QR: {e}")
+            return jsonify({'error': 'QR generation failed'}), 500
+
+        expires_at = token.expires_at.isoformat()
+
+        # Emit to iPad room
+        try:
+            socketio.emit('new_qr', {
+                'qr_url': data_uri,
+                'expires_at': expires_at,
+                'landing_url': url,
+            }, room='qr_display')
+            logger.info(f"[QR] Emitted new_qr to room=qr_display expires_at={expires_at} url={url}")
+        except Exception as e:
+            logger.warning(f"[QR] SocketIO emit new_qr failed: {e}")
+
+        # Send magic link email
+        try:
+            ok = email_service.send_magic_link(chosen_email, url)
+            logger.info(f"[QR] Magic link email send result={ok} to={chosen_email}")
+        except Exception as e:
+            logger.warning(f"[QR] Failed to send magic link email: {e}")
+
+        return jsonify({'message': 'QR generated', 'qr_url': data_uri, 'expires_at': expires_at, 'landing_url': url})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"/admin/generate_qr error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/clear_qr', methods=['POST'])
+@require_admin()
+def admin_clear_qr(user):
+    try:
+        socketio.emit('qr_clear', {'reason': 'manual'}, room='qr_display')
+        logger.info(f"[QR] Emitted qr_clear (manual) to room=qr_display")
+        return jsonify({'message': 'QR cleared'})
+    except Exception as e:
+        logger.warning(f"[QR] SocketIO emit qr_clear failed: {e}")
+        return jsonify({'error': 'Failed to clear QR'}), 500
+
+@app.route('/r/welcome', methods=['GET'])
+def referral_welcome():
+    """Validate token and show mobile-optimized landing page; mark token used; clear iPad QR."""
+    try:
+        t = (request.args.get('t') or '').strip()
+        if not t:
+            return Response('<h1>Invalid link</h1>', status=400)
+        tok = OnboardingToken.query.get(t)
+        if not tok:
+            return Response('<h1>Link expired or invalid</h1>', status=400)
+        if not tok.is_valid():
+            return Response('<h1>Link expired</h1>', status=400)
+
+        # Mark used and commit
+        tok.mark_used()
+        db.session.commit()
+        logger.info(f"[QR] Token used jti={tok.jti} user_id={tok.user_id} ip={request.remote_addr}")
+
+        # Clear QR on iPad
+        try:
+            socketio.emit('qr_clear', {'reason': 'scanned'}, room='qr_display')
+            logger.info(f"[QR] Emitted qr_clear (scanned) to room=qr_display")
+        except Exception as e:
+            logger.warning(f"[QR] qr_clear emit on scan failed: {e}")
+
+        # Prepare content for landing page
+        ref_user = User.query.get(tok.user_id)
+        referral_code = ref_user.referral_code if ref_user else '—'
+        public_ref_link_base = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
+        if not public_ref_link_base.startswith('http'):
+            public_ref_link_base = f"https://{public_ref_link_base}"
+        if not public_ref_link_base.endswith('/'):
+            public_ref_link_base += '/'
+        referral_link = f"{public_ref_link_base}ref/{referral_code}"
+
+        # Render a simple, mobile-first landing page (no PII)
+        html = f"""
+<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>Duluth Dental Center — Referral</title>
+    <style>
+      :root {{ --mint: #3EB489; --blue: #1E90FF; }}
+      body {{ margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fff; color: #111; }}
+      .container {{ max-width: 960px; margin: 0 auto; padding: 16px; }}
+      .hero {{ position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }}
+      .hero img {{ width: 100%; height: auto; display: block; }}
+      .hero-text {{ position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px; background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.35)); color: #fff; }}
+      .headline {{ font-size: clamp(24px, 6vw, 40px); font-weight: 800; margin: 0 0 8px; }}
+      .subtext {{ font-size: clamp(14px, 3.5vw, 18px); max-width: 720px; margin: 0 0 16px; }}
+      .btn {{ display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 20px; border-radius: 999px; background: var(--mint); color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(62,180,137,0.35); border: none; cursor: pointer; }}
+      .btn:active {{ transform: translateY(1px); }}
+      .card {{ border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background: #fff; padding: 16px; margin-top: 16px; }}
+      /* New mobile-first steps layout */
+      .steps {{ display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }}
+      .step-card {{ background: #fff; border-radius: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.06); padding: 16px 18px; text-align: center; }}
+      .step-icon {{ display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }}
+      .step-icon svg {{ width: 28px; height: 28px; stroke: var(--mint); stroke-width: 2.25; fill: none; }}
+      .step-num {{ display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 9999px; background: #E6FFFA; color: #065F46; font-weight: 700; font-size: 14px; margin: 0 auto 6px; box-shadow: 0 2px 6px rgba(20,184,166,0.25); }}
+      .step-title {{ font-weight: 800; font-size: 18px; margin: 4px 0; color: #0F172A; }}
+      .step-desc {{ font-size: 14px; color: #4B5563; line-height: 1.45; margin: 0; }}
+      @media (min-width: 640px) {{ .step-title {{ font-size: 19px; }} .step-desc {{ font-size: 15px; }} }}
+      .muted {{ color: #555; }}
+      .row {{ display: grid; grid-template-columns: 1fr; gap: 12px; }}
+      @media (min-width: 740px) {{ .row {{ grid-template-columns: 1fr auto; }} }}
+      .input {{ width: 100%; min-height: 44px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; font-size: 16px; }}
+      .toast {{ position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 14px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); display: none; }}
+      .footer {{ font-size: 12px; color: #666; margin: 24px 8px; text-align: center; }}
+      a.terms {{ color: var(--blue); text-decoration: none; }}
+    </style>
+  </head>
+  <body>
+      <div class=\"container\">
+
+      <div class=\"steps\">
+        <div class=\"step-card\">
+          <div class=\"step-icon\">
+            <!-- Share (outline) -->
+            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15 8a3 3 0 1 0-2.83-4H12a3 3 0 0 0 3 3Z\" opacity=\"0\"/><circle cx=\"18\" cy=\"5\" r=\"3\" fill=\"none\"/><circle cx=\"6\" cy=\"12\" r=\"3\" fill=\"none\"/><circle cx=\"18\" cy=\"19\" r=\"3\" fill=\"none\"/><path d=\"M8.59 10.51 15.4 6.49M8.59 13.49 15.4 17.51\"/></svg>
+          </div>
+          <div class=\"step-num\">1</div>
+          <div class=\"step-title\">Share</div>
+          <p class=\"step-desc\">Send your referral link or QR code to a friend.</p>
+        </div>
+        <div class=\"step-card\">
+          <div class=\"step-icon\">
+            <!-- Calendar (outline) -->
+            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"17\" rx=\"2\" ry=\"2\" fill=\"none\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg>
+          </div>
+          <div class=\"step-num\">2</div>
+          <div class=\"step-title\">Friend Visits</div>
+          <p class=\"step-desc\">Your friend books their first appointment at Duluth Dental Center.</p>
+        </div>
+        <div class=\"step-card\">
+          <div class=\"step-icon\">
+            <!-- Gift (outline) -->
+            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"8\" width=\"18\" height=\"13\" rx=\"2\" ry=\"2\" fill=\"none\"/><path d=\"M12 8v13M3 12h18\"/><path d=\"M12 8c-1.657 0-3-1.343-3-3 0-.828.672-1.5 1.5-1.5C11.328 3.5 12 4.172 12 5v3Zm0 0c1.657 0 3-1.343 3-3 0-.828-.672-1.5-1.5-1.5C12.672 3.5 12 4.172 12 5v3Z\"/></svg>
+          </div>
+          <div class=\"step-num\">3</div>
+          <div class=\"step-title\">You Earn</div>
+          <p class=\"step-desc\">You receive a $50 reward after their first completed visit.</p>
+        </div>
+      </div>
+
+      <div class=\"card\">
+        <div class=\"row\">
+          <input class=\"input\" id=\"refLink\" value=\"{referral_link}\" readonly />
+          <button class=\"btn\" id=\"copyBtn2\">Copy</button>
+        </div>
+      </div>
+
+      <div class=\"card\">
+        <details><summary><strong>How do I refer someone?</strong></summary><div class=\"muted\">Share your unique referral link (copied above) with friends or family. When they book and complete their first visit, you receive your reward.</div></details>
+        <details><summary><strong>When will I receive my $50 reward?</strong></summary><div class=\"muted\">Rewards are issued after your referred friend completes their first appointment.</div></details>
+        <details><summary><strong>Is there a limit to how many people I can refer?</strong></summary><div class=\"muted\">You can refer multiple people. Please see full terms for any limits or eligibility rules.</div></details>
+      </div>
+
+      <div class=\"footer\">
+        Ask us about our referral program when you visit Duluth Dental Center. <a class=\"terms\" href=\"#\">View full terms and conditions</a>
+      </div>
+    </div>
+    <div class=\"toast\" id=\"toast\">✅ Copied! Your referral link has been saved to your clipboard.</div>
+    <script>
+      const link = {json.dumps(referral_link)};
+      const toasts = document.getElementById('toast');
+      function showToast() {{ toasts.style.display = 'block'; setTimeout(() => toasts.style.display = 'none', 2000); }}
+      async function copy() {{ try {{ await navigator.clipboard.writeText(link); showToast(); }} catch(e) {{ console.log(e); }} }}
+      const _btn1 = document.getElementById('copyBtn'); if (_btn1) _btn1.addEventListener('click', copy);
+      const _btn2 = document.getElementById('copyBtn2'); if (_btn2) _btn2.addEventListener('click', copy);
+    </script>
+  </body>
+ </html>
+        """
+        return Response(html, mimetype='text/html')
+    except Exception as e:
+        logger.error(f"/r/welcome error: {e}")
+        return Response('<h1>Error</h1>', status=500)
 
 @app.route('/admin/user/<int:user_id>/referrals', methods=['PUT'])
 @require_admin()
@@ -1786,4 +2270,5 @@ def internal_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') != 'production'
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    # Use Socket.IO development server so the /socket.io endpoint works locally
+    socketio.run(app, debug=debug, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

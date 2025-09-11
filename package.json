@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
-    "dev": "cd frontend && npm start"
+    "dev": "cd frontend && npm start",
+    "dev:all": "bash scripts/dev_local.sh",
+    "stop": "bash scripts/stop_local.sh"
   },
   "workspaces": ["frontend"]
 }
