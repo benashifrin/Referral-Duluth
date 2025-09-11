@@ -1,20 +1,15 @@
 {
-  "redirects": [
-    {
-      "source": "/demo",
-      "destination": "/qrcode",
-      "statusCode": 301
-    },
-    {
-      "source": "/ref/:code",
-      "destination": "https://api.bestdentistduluth.com/ref/:code",
-      "statusCode": 302
-    }
-  ],
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "build",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/r/welcome", "destination": "https://api.bestdentistduluth.com/r/welcome" },
+    { "source": "/ref/:referral_code", "destination": "https://api.bestdentistduluth.com/ref/:referral_code" },
+    { "source": "/api/:match*", "destination": "https://api.bestdentistduluth.com/api/:match*" },
+    { "source": "/auth/:match*", "destination": "https://api.bestdentistduluth.com/auth/:match*" },
+    { "source": "/admin/:match*", "destination": "https://api.bestdentistduluth.com/admin/:match*" },
+    { "source": "/qr/:match*", "destination": "https://api.bestdentistduluth.com/qr/:match*" },
+    { "source": "/health", "destination": "https://api.bestdentistduluth.com/health" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
+
