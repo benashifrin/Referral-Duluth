@@ -41,8 +41,8 @@ export default function ReferralProgram() {
     @media (prefers-reduced-motion: reduce) { .gradient-layer-1 { animation-duration: 60s; } .gradient-layer-2 { animation-duration: 80s; } .gradient-layer-3 { animation-duration: 100s; } }
     .demo-content { position: relative; z-index: 1; display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
     .demo-card { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.25); padding: 32px; color: #fff; text-align: center; max-width: 720px; width: 100%; }
-    .headline { font-size: clamp(22px, 4vw, 36px); font-weight: 800; margin: 0 0 8px; text-shadow: 0 2px 4px rgba(0,0,0,.2); }
-    .subtext { font-size: clamp(14px, 2.6vw, 18px); opacity: .95; margin: 0; }
+    .headline { font-size: clamp(22px, 4vw, 36px); font-weight: 800; margin: 0 0 8px; color: #000; text-shadow: none; }
+    .subtext { font-size: clamp(14px, 2.6vw, 18px); opacity: .95; margin: 0; color: #000; }
     .qr-container { position: relative; width: 240px; height: 240px; margin: 12px auto 4px; }
     .qr-glow { position: absolute; inset: -12px; border-radius: 24px; background: radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,.35), rgba(255,255,255,0)); filter: blur(8px); }
     .qr-code { width: 100%; height: 100%; border-radius: 24px; border: 2px solid rgba(255,255,255,0.55); box-shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.15); background: rgba(0,0,0,0.15); object-fit: cover; }
