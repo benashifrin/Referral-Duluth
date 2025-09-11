@@ -2383,6 +2383,14 @@ def admin_delete_user(user, user_id):
         for c in clicks:
             db.session.delete(c)
 
+        # Delete short-lived onboarding tokens tied to this user to satisfy FK constraints
+        try:
+            tokens = OnboardingToken.query.filter_by(user_id=target.id).all()
+            for tok in tokens:
+                db.session.delete(tok)
+        except Exception as e:
+            logger.warning(f"Failed to delete onboarding tokens for user {target.id}: {e}")
+
         db.session.delete(target)
         db.session.commit()
 
