@@ -5,6 +5,7 @@ import {
   DollarSign, 
   Clock,
   Download,
+  Upload,
   CheckCircle,
   Filter,
   RefreshCw,
@@ -40,6 +41,10 @@ const AdminDashboard = ({ user }) => {
   const [qrEmail, setQrEmail] = useState('');
   const [generatingQR, setGeneratingQR] = useState(false);
   const [clearingQR, setClearingQR] = useState(false);
+  // CSV upload state
+  const [csvFile, setCsvFile] = useState(null);
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+  const [lastImportSummary, setLastImportSummary] = useState(null);
 
   const loadStats = async () => {
     try {
@@ -193,6 +198,25 @@ const AdminDashboard = ({ user }) => {
       toast.error(handleAPIError(err));
     } finally {
       setClearingQR(false);
+    }
+  };
+
+  const handleCsvUpload = async () => {
+    if (!csvFile) {
+      toast.error('Select a CSV file first');
+      return;
+    }
+    setUploadingCsv(true);
+    try {
+      const res = await adminAPI.uploadPatients(csvFile);
+      setLastImportSummary(res);
+      toast.success(`Import complete: ${res.created} created, ${res.updated} updated, ${res.skipped} skipped`);
+      // Refresh users list to reflect new/updated patients
+      await loadUsers(usersPage);
+    } catch (err) {
+      toast.error(handleAPIError(err));
+    } finally {
+      setUploadingCsv(false);
     }
   };
 
@@ -374,6 +398,41 @@ const AdminDashboard = ({ user }) => {
               <div className="text-xs text-gray-500 mt-2">QR auto-hides after scan, admin clear, or 2 minutes.</div>
             </div>
           </div>
+        </div>
+
+        {/* Upload Patients (CSV) */}
+        <div className="card mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Upload Patients (CSV)</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">Import first name, last name, email, and phone to pre-create patients for faster search. No emails are sent.</p>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              className="block"
+            />
+            <button onClick={handleCsvUpload} disabled={uploadingCsv || !csvFile} className="btn-primary inline-flex items-center">
+              {uploadingCsv ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" /> Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" /> Upload CSV
+                </>
+              )}
+            </button>
+          </div>
+          {lastImportSummary && (
+            <div className="text-sm text-gray-700 mt-3">
+              <div>Created: <strong>{lastImportSummary.created}</strong>, Updated: <strong>{lastImportSummary.updated}</strong>, Skipped: <strong>{lastImportSummary.skipped}</strong>, Rows: <strong>{lastImportSummary.total_rows}</strong></div>
+              {Array.isArray(lastImportSummary.errors) && lastImportSummary.errors.length > 0 && (
+                <div className="text-xs text-gray-500 mt-1">First {Math.min(50, lastImportSummary.errors.length)} errors shown (by row). Example: {lastImportSummary.errors[0].row && `Row ${lastImportSummary.errors[0].row}: ${lastImportSummary.errors[0].error}`}</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Referrals Management */}

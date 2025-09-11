@@ -294,6 +294,15 @@ with app.app_context():
                 except Exception as e:
                     logger.warning(f'Could not add user.signed_up_by_staff: {e}')
 
+            # Add user.phone column if missing
+            if 'phone' not in user_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN phone VARCHAR(30)'))
+                    db.session.commit()
+                    logger.info('Added column user.phone')
+                except Exception as e:
+                    logger.warning(f'Could not add user.phone: {e}')
+
         # Add Referral.signed_up_by_staff and Referral.origin if missing
         if 'referral' in insp.get_table_names():
             ref_cols = {c['name'] for c in insp.get_columns('referral')}
@@ -1672,6 +1681,7 @@ def admin_list_users(user):
                 'created_at': u.created_at.isoformat(),
                 'signed_up_by_staff': getattr(u, 'signed_up_by_staff', None),
                 'name': getattr(u, 'name', None),
+                'phone': getattr(u, 'phone', None),
             })
 
         return jsonify({
@@ -1697,10 +1707,14 @@ def admin_search_users(user):
         if not q:
             return jsonify({'results': []})
 
-        # Search by email or name (if present)
+        # Search by email, name, or phone (if present)
         query = User.query
         q_like = f"%{q}%"
-        query = query.filter((User.email.ilike(q_like)) | (User.name.ilike(q_like)))
+        query = query.filter(
+            (User.email.ilike(q_like)) |
+            (User.name.ilike(q_like)) |
+            (User.phone.ilike(q_like))
+        )
         results = query.order_by(User.created_at.desc()).limit(20).all()
         return jsonify({'results': [
             {
@@ -1708,6 +1722,7 @@ def admin_search_users(user):
                 'email': u.email,
                 'name': getattr(u, 'name', None),
                 'referral_code': u.referral_code,
+                'phone': getattr(u, 'phone', None),
             }
         for u in results]})
     except Exception as e:
@@ -2180,6 +2195,135 @@ def export_referrals(user):
         
     except Exception as e:
         print(f"Error exporting referrals: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/admin/upload_patients', methods=['POST'])
+@require_admin()
+def admin_upload_patients(user):
+    """Upload a CSV of patients (first name, last name, email, phone).
+    - Upserts into the User table.
+    - Never sends emails or magic links.
+    - Returns a summary of created/updated rows and any errors.
+    Expected headers (case-insensitive, flexible):
+      first, last, email, phone (accepts variants like first_name, last name, phone number)
+    """
+    try:
+        # Accept either multipart file or raw CSV text in a 'csv' form field
+        csv_bytes = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            raw = (request.form.get('csv') or request.get_data(as_text=True) or '').strip()
+            if raw:
+                csv_bytes = raw.encode('utf-8', 'ignore')
+
+        if not csv_bytes:
+            return jsonify({'error': 'No CSV provided'}), 400
+
+        # Basic size guard (5 MB)
+        if len(csv_bytes) > 5 * 1024 * 1024:
+            return jsonify({'error': 'CSV too large (max 5MB)'}), 400
+
+        import csv as _csv
+        from io import StringIO as _StringIO
+
+        text = csv_bytes.decode('utf-8', 'ignore')
+        reader = _csv.DictReader(_StringIO(text))
+        if not reader.fieldnames:
+            return jsonify({'error': 'CSV missing header row'}), 400
+
+        # Normalize header names: lowercase, strip, remove spaces and tabs
+        def _norm(h):
+            return ''.join(ch for ch in h.lower().strip() if ch not in {' ', '\\t'})
+
+        # Build a mapping from normalized header to actual header
+        header_map = { _norm(h): h for h in reader.fieldnames }
+
+        # Helper to pull a value for a given logical field
+        def get_val(row, keys):
+            for k in keys:
+                h = header_map.get(k)
+                if h and h in row:
+                    val = str(row[h]).strip()
+                    if val:
+                        return val
+            return ''
+
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = []
+        row_num = 1  # header is row 1
+
+        for row in reader:
+            row_num += 1
+            try:
+                first = get_val(row, ['first', 'firstname', 'first_name', 'givenname'])
+                last = get_val(row, ['last', 'lastname', 'last_name', 'surname', 'familyname'])
+                email = get_val(row, ['email', 'emailaddress', 'email_address'])
+                phone = get_val(row, ['phone', 'phonenumber', 'phone_number', 'mobile', 'cell'])
+
+                if not email:
+                    skipped += 1
+                    errors.append({'row': row_num, 'error': 'Missing email'})
+                    continue
+                # Validate email format
+                try:
+                    validate_email(email)
+                except EmailNotValidError:
+                    skipped += 1
+                    errors.append({'row': row_num, 'error': f'Invalid email: {email}'})
+                    continue
+
+                # Compose display name
+                name = (first + ' ' + last).strip() if (first or last) else ''
+
+                # Normalize phone (store digits only for searchability)
+                phone_norm = None
+                if phone:
+                    digits = ''.join(ch for ch in phone if ch.isdigit())
+                    if digits:
+                        # Keep up to 15 digits (E.164 max without +)
+                        phone_norm = digits[-15:]
+
+                # Upsert by email (case-insensitive)
+                u = User.query.filter_by(email=email.lower()).first()
+                if not u:
+                    u = User(email=email.lower())
+                    if name:
+                        u.name = name
+                    if phone_norm:
+                        u.phone = phone_norm
+                    db.session.add(u)
+                    created += 1
+                else:
+                    changed = False
+                    if name and name != (u.name or ''):
+                        u.name = name
+                        changed = True
+                    if phone_norm and phone_norm != (u.phone or ''):
+                        u.phone = phone_norm
+                        changed = True
+                    if changed:
+                        updated += 1
+                # No emails or notifications are sent during import
+            except Exception as e:
+                db.session.rollback()
+                errors.append({'row': row_num, 'error': str(e)})
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Import complete',
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'errors': errors[:50],  # return up to 50 errors for brevity
+            'total_rows': (row_num - 1)
+        })
+    except Exception as e:
+        logger.error(f"/admin/upload_patients error: {e}")
+        db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/admin/stats', methods=['GET'])

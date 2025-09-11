@@ -212,6 +212,22 @@ export const adminAPI = {
     const response = await api.post('/admin/clear_qr');
     return response.data;
   },
+
+  // Upload patients CSV (admin only)
+  uploadPatients: async (fileOrText) => {
+    const form = new FormData();
+    if (fileOrText instanceof File) {
+      form.append('file', fileOrText);
+    } else if (typeof fileOrText === 'string') {
+      form.append('csv', fileOrText);
+    } else {
+      throw new Error('Provide a File or CSV string');
+    }
+    const response = await api.post('/admin/upload_patients', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 // Utility function to handle API errors with mobile-specific messages

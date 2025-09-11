@@ -15,6 +15,7 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     signed_up_by_staff = db.Column(db.String(50), nullable=True)
     name = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(30), nullable=True)
     
     # Relationship to referrals made by this user
     referrals_made = db.relationship('Referral', foreign_keys='Referral.referrer_id', backref='referrer', lazy='dynamic')
@@ -80,6 +81,7 @@ class User(db.Model):
             'is_admin': self.is_admin,
             'signed_up_by_staff': self.signed_up_by_staff,
             'name': self.name,
+            'phone': self.phone,
         }
 
 class Referral(db.Model):
