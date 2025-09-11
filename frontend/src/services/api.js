@@ -145,7 +145,7 @@ export const referralAPI = {
 
 // Admin API
 export const adminAPI = {
-  getUsers: async (page = 1, perPage = 20, q = '') => {
+  getUsers: async (page = 1, perPage = 25, q = '') => {
     const params = new URLSearchParams({ page, per_page: perPage });
     if (q) params.append('q', q);
     const response = await api.get(`/admin/users?${params}`);

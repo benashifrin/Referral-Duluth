@@ -641,10 +641,10 @@ const AdminDashboard = ({ user }) => {
           )}
         </div>
 
-        {/* Users Referral Controls */}
+        {/* All Users */}
         <div className="card mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Users – Adjust Referral Counts</h2>
+            <h2 className="text-xl font-semibold text-gray-900">All Users</h2>
             <button onClick={() => loadUsers(usersPage)} className="btn-secondary">
               {usersLoading ? 'Loading...' : 'Reload Users'}
             </button>
@@ -654,6 +654,7 @@ const AdminDashboard = ({ user }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created (ET)</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Signed Up</th>
@@ -670,6 +671,7 @@ const AdminDashboard = ({ user }) => {
                       <div className="text-sm font-medium text-gray-900">{u.name ? u.name : '—'}</div>
                       <div className="text-xs text-gray-500">{u.email}</div>
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{formatDateTime(u.created_at)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.referral_code}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{u.signed_up_by_staff || '—'}</td>
                     <td className="px-6 py-4">
