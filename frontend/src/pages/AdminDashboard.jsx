@@ -39,7 +39,6 @@ const AdminDashboard = ({ user }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [qrEmail, setQrEmail] = useState('');
-  const [qrName, setQrName] = useState('');
   const [generatingQR, setGeneratingQR] = useState(false);
   const [clearingQR, setClearingQR] = useState(false);
   // CSV upload state
@@ -165,7 +164,6 @@ const AdminDashboard = ({ user }) => {
   const selectPatient = (p) => {
     setSelectedPatient(p);
     setQrEmail(p.email || '');
-    setQrName('');
     setSearchResults([]);
   };
 
@@ -178,11 +176,12 @@ const AdminDashboard = ({ user }) => {
     setGeneratingQR(true);
     try {
       const savedName = (selectedPatient && selectedPatient.name ? String(selectedPatient.name).trim() : '');
-      const typedName = (!selectedPatient && qrName ? String(qrName).trim() : '');
-      const nameForPayload = selectedPatient ? undefined : (typedName || undefined);
-      const nameSource = savedName ? 'saved' : (typedName ? 'typed' : 'none');
-      const welcomeNamePreview = savedName || typedName || '';
-      // Log which name will be used for the iPad welcome message
+      const typedFromSearch = (!selectedPatient && searchQ ? String(searchQ).trim() : '');
+      const nameForPayload = selectedPatient ? undefined : (typedFromSearch || undefined);
+      const nameSource = savedName ? 'saved' : (typedFromSearch ? 'typed_from_search' : 'none');
+      const welcomeNamePreview = savedName || typedFromSearch || '';
+      // Log the search field and which name will be used for the iPad welcome message
+      console.log('[QR] Search field (Find patient):', searchQ);
       console.log('[QR] Welcome name to use:', {
         welcomeName: welcomeNamePreview,
         source: nameSource,
@@ -399,18 +398,6 @@ const AdminDashboard = ({ user }) => {
                 value={qrEmail}
                 onChange={(e) => setQrEmail(e.target.value)}
               />
-              {!selectedPatient && (
-                <>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 mt-3">Name (if not found)</label>
-                  <input
-                    type="text"
-                    className="input-field w-full"
-                    placeholder="First Last"
-                    value={qrName}
-                    onChange={(e) => setQrName(e.target.value)}
-                  />
-                </>
-              )}
               <button
                 onClick={handleGenerateQR}
                 disabled={generatingQR || (!selectedPatient && !qrEmail)}
