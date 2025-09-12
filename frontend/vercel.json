@@ -8,8 +8,8 @@
     { "source": "/auth/:match*", "destination": "https://api.bestdentistduluth.com/auth/:match*" },
     { "source": "/admin/:match*", "destination": "https://api.bestdentistduluth.com/admin/:match*" },
     { "source": "/qr/:match*", "destination": "https://api.bestdentistduluth.com/qr/:match*" },
+    { "source": "/socket.io/:match*", "destination": "https://api.bestdentistduluth.com/socket.io/:match*" },
     { "source": "/health", "destination": "https://api.bestdentistduluth.com/health" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-

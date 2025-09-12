@@ -89,7 +89,8 @@ export default function ReferralProgram() {
 
   useEffect(() => {
     // Connect Socket.IO
-    const socket = io(API_URL, {
+    const base = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : API_URL;
+    const socket = io(base, {
       transports: ['websocket', 'polling'],
       path: '/socket.io',
       withCredentials: true,
