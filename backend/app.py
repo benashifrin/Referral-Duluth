@@ -1737,7 +1737,8 @@ def admin_generate_qr(user):
         data = request.get_json() or {}
         user_id = data.get('user_id') or data.get('patient_id')
         email_override = (data.get('email') or '').strip().lower() or None
-        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override}")
+        raw_name = (data.get('name') or '').strip()
+        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}'")
         # Resolve target user either by explicit user_id or by email
         target = None
         if user_id:
@@ -1784,8 +1785,26 @@ def admin_generate_qr(user):
             except Exception:
                 return None
 
-        # Use stored user.name only
-        first_name = extract_first_name(getattr(target, 'name', '') or '')
+        # Prefer stored user.name, else fall back to typed raw_name for personalization
+        def clean_full_name(s: str) -> str:
+            try:
+                if not s:
+                    return ''
+                # collapse whitespace and trim
+                import re as _re
+                s2 = _re.sub(r'\s+', ' ', str(s)).strip()
+                return s2[:100]
+            except Exception:
+                return ''
+
+        welcome_name = ''
+        if getattr(target, 'name', None):
+            welcome_name = clean_full_name(target.name)
+        elif raw_name:
+            welcome_name = clean_full_name(raw_name)
+
+        # Derive first name from whichever welcome_name we ended up with
+        first_name = extract_first_name(welcome_name)
 
         # Create token (<= 2 minutes)
         token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
@@ -1824,6 +1843,7 @@ def admin_generate_qr(user):
                 'expires_at': expires_at,
                 'landing_url': url,
                 'first_name': first_name,
+                'welcome_name': welcome_name,
             }, room='qr_display')
             logger.info(f"[QR] Emitted new_qr to room=qr_display expires_at={expires_at} url={url}")
         except Exception as e:

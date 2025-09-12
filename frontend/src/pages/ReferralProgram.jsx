@@ -75,6 +75,7 @@ export default function ReferralProgram() {
   const [qrUrl, setQrUrl] = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
   const [firstName, setFirstName] = useState('');
+  const [welcomeName, setWelcomeName] = useState('');
   const [isFading, setIsFading] = useState(false);
   const hideTimerRef = useRef(null);
   const socketRef = useRef(null);
@@ -100,7 +101,7 @@ export default function ReferralProgram() {
       socket.emit('join_qr_display');
     });
     socket.on('new_qr', (payload) => {
-      const { qr_url, expires_at, landing_url, first_name } = payload || {};
+      const { qr_url, expires_at, landing_url, first_name, welcome_name } = payload || {};
       if (landing_url) {
         console.log('[QR] Landing URL:', landing_url);
       }
@@ -115,6 +116,11 @@ export default function ReferralProgram() {
           } else {
             setFirstName('');
           }
+          if (typeof welcome_name === 'string' && welcome_name.trim()) {
+            setWelcomeName(welcome_name.trim());
+          } else {
+            setWelcomeName('');
+          }
           setIsFading(false);
           // Auto-hide after 2 minutes regardless, as safety
           resetTimer(120000);
@@ -127,6 +133,7 @@ export default function ReferralProgram() {
         setQrUrl(null);
         setExpiresAt(null);
         setFirstName('');
+        setWelcomeName('');
         setIsFading(false);
       }, FADE_MS);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -155,9 +162,9 @@ export default function ReferralProgram() {
         <div className="demo-card">
           {qrUrl ? (
             <div>
-              {firstName ? (
+              {(welcomeName || firstName) ? (
                 <p className="thankyou" style={{ marginBottom: 10, color: '#000', fontWeight: 800, fontSize: 'clamp(16px, 3.5vw, 24px)' }}>
-                  Thank you for joining our referral program, {firstName}.
+                  Welcome, {welcomeName || firstName}!
                 </p>
               ) : null}
               <div className="qr-container" style={fadingStyle}>
