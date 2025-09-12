@@ -1737,7 +1737,8 @@ def admin_generate_qr(user):
         data = request.get_json() or {}
         user_id = data.get('user_id') or data.get('patient_id')
         email_override = (data.get('email') or '').strip().lower() or None
-        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override}")
+        raw_name = (data.get('name') or '').strip()
+        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}'")
         # Resolve target user either by explicit user_id or by email
         target = None
         if user_id:
@@ -1771,6 +1772,21 @@ def admin_generate_qr(user):
             validate_email(chosen_email)
         except EmailNotValidError:
             return jsonify({'error': 'Invalid email address'}), 400
+
+        # Helper: extract first name via regex (letters + common separators)
+        def extract_first_name(s: str):
+            try:
+                if not s:
+                    return None
+                m = re.search(r"[A-Za-z][A-Za-z\-']*", s)
+                if not m:
+                    return None
+                return m.group(0).strip().title()
+            except Exception:
+                return None
+
+        # Compute first name preference: provided name > stored user.name
+        first_name = extract_first_name(raw_name) or extract_first_name(getattr(target, 'name', '') or '')
 
         # Create token (<= 2 minutes)
         token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
@@ -1808,6 +1824,7 @@ def admin_generate_qr(user):
                 'qr_url': data_uri,
                 'expires_at': expires_at,
                 'landing_url': url,
+                'first_name': first_name,
             }, room='qr_display')
             logger.info(f"[QR] Emitted new_qr to room=qr_display expires_at={expires_at} url={url}")
         except Exception as e:

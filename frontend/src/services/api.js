@@ -200,9 +200,10 @@ export const adminAPI = {
   },
 
   // Generate short-lived referral QR (returns data URL and emits to iPad)
-  generateReferralQR: async (userId, email) => {
+  generateReferralQR: async (userId, email, name) => {
     const payload = { user_id: userId };
     if (email) payload.email = email;
+    if (name) payload.name = name;
     const response = await api.post('/admin/generate_qr', payload);
     return response.data;
   },
