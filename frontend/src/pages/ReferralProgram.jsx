@@ -105,6 +105,7 @@ export default function ReferralProgram() {
       if (landing_url) {
         console.log('[QR] Landing URL:', landing_url);
       }
+      console.log('[QR Display] Incoming names:', { first_name, welcome_name });
       if (qr_url) {
         setIsFading(true);
         setTimeout(() => {
@@ -124,6 +125,12 @@ export default function ReferralProgram() {
           setIsFading(false);
           // Auto-hide after 2 minutes regardless, as safety
           resetTimer(120000);
+          try {
+            const computedFirst = (typeof first_name === 'string' && first_name.trim()) ? first_name.trim().match(/[A-Za-z][A-Za-z\-']*/)?.[0] || '' : '';
+            const computedFromWelcome = (typeof welcome_name === 'string' && welcome_name.trim()) ? welcome_name.trim().match(/[A-Za-z][A-Za-z\-']*/)?.[0] || '' : '';
+            const computedNameToShow = computedFirst || computedFromWelcome || '';
+            console.log('[QR Display] Name to show (first only):', computedNameToShow);
+          } catch {}
         }, FADE_MS);
       }
     });
