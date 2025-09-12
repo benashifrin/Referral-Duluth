@@ -177,7 +177,18 @@ const AdminDashboard = ({ user }) => {
     }
     setGeneratingQR(true);
     try {
-      const nameForPayload = selectedPatient ? undefined : (qrName || undefined);
+      const savedName = (selectedPatient && selectedPatient.name ? String(selectedPatient.name).trim() : '');
+      const typedName = (!selectedPatient && qrName ? String(qrName).trim() : '');
+      const nameForPayload = selectedPatient ? undefined : (typedName || undefined);
+      const nameSource = savedName ? 'saved' : (typedName ? 'typed' : 'none');
+      const welcomeNamePreview = savedName || typedName || '';
+      // Log which name will be used for the iPad welcome message
+      console.log('[QR] Welcome name to use:', {
+        welcomeName: welcomeNamePreview,
+        source: nameSource,
+        selectedPatientId: selectedPatient?.id || null,
+      });
+
       const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail, nameForPayload);
       if (res?.landing_url) {
         // Log landing URL for debugging/visibility in Chrome console
