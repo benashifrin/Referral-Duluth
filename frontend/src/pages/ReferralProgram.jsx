@@ -146,6 +146,16 @@ export default function ReferralProgram() {
   }, []);
 
   const fadingStyle = { opacity: isFading ? 0 : 1, transition: `opacity ${FADE_MS}ms ease` };
+  // Always display ONLY the first name: prefer server-provided first_name,
+  // else extract first token from welcome_name as a fallback.
+  const nameToShow = React.useMemo(() => {
+    if (firstName && firstName.trim()) return firstName.trim();
+    if (welcomeName && welcomeName.trim()) {
+      const m = welcomeName.trim().match(/[A-Za-z][A-Za-z\-']*/);
+      return m ? m[0] : '';
+    }
+    return '';
+  }, [firstName, welcomeName]);
 
   return (
     <>
@@ -162,9 +172,9 @@ export default function ReferralProgram() {
         <div className="demo-card">
           {qrUrl ? (
             <div>
-              {(welcomeName || firstName) ? (
+              {nameToShow ? (
                 <p className="thankyou" style={{ marginBottom: 10, color: '#000', fontWeight: 800, fontSize: 'clamp(16px, 3.5vw, 24px)' }}>
-                  Welcome, {welcomeName || firstName}!
+                  Welcome, {nameToShow}!
                 </p>
               ) : null}
               <div className="qr-container" style={fadingStyle}>
