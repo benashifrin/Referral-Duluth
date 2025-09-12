@@ -180,10 +180,18 @@ const AdminDashboard = ({ user }) => {
       const nameForPayload = selectedPatient ? undefined : (typedFromSearch || undefined);
       const nameSource = savedName ? 'saved' : (typedFromSearch ? 'typed_from_search' : 'none');
       const welcomeNamePreview = savedName || typedFromSearch || '';
+      // Compute first name that the iPad will display
+      const extractFirst = (s) => {
+        if (!s) return '';
+        const m = String(s).trim().match(/[A-Za-z][A-Za-z\-']*/);
+        return m ? m[0] : '';
+      };
+      const firstNameToUse = extractFirst(welcomeNamePreview);
       // Log the search field and which name will be used for the iPad welcome message
       console.log('[QR] Search field (Find patient):', searchQ);
       console.log('[QR] Welcome name to use:', {
-        welcomeName: welcomeNamePreview,
+        firstName: firstNameToUse,
+        rawWelcomeName: welcomeNamePreview,
         source: nameSource,
         selectedPatientId: selectedPatient?.id || null,
       });
