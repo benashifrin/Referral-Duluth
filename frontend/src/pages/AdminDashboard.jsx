@@ -39,7 +39,6 @@ const AdminDashboard = ({ user }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [qrEmail, setQrEmail] = useState('');
-  const [qrName, setQrName] = useState('');
   const [generatingQR, setGeneratingQR] = useState(false);
   const [clearingQR, setClearingQR] = useState(false);
   // CSV upload state
@@ -165,7 +164,6 @@ const AdminDashboard = ({ user }) => {
   const selectPatient = (p) => {
     setSelectedPatient(p);
     setQrEmail(p.email || '');
-    setQrName(p.name || '');
     setSearchResults([]);
   };
 
@@ -177,7 +175,7 @@ const AdminDashboard = ({ user }) => {
     }
     setGeneratingQR(true);
     try {
-      const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail, qrName);
+      const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail);
       if (res?.landing_url) {
         // Log landing URL for debugging/visibility in Chrome console
         // Example: http://localhost:5001/r/welcome?t=...
@@ -386,14 +384,6 @@ const AdminDashboard = ({ user }) => {
                 placeholder="patient@email.com"
                 value={qrEmail}
                 onChange={(e) => setQrEmail(e.target.value)}
-              />
-              <label className="block text-sm font-medium text-gray-700 mb-1 mt-3">Name (optional)</label>
-              <input
-                type="text"
-                className="input-field w-full"
-                placeholder="First Last"
-                value={qrName}
-                onChange={(e) => setQrName(e.target.value)}
               />
               <button
                 onClick={handleGenerateQR}

@@ -1737,8 +1737,7 @@ def admin_generate_qr(user):
         data = request.get_json() or {}
         user_id = data.get('user_id') or data.get('patient_id')
         email_override = (data.get('email') or '').strip().lower() or None
-        raw_name = (data.get('name') or '').strip()
-        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}'")
+        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override}")
         # Resolve target user either by explicit user_id or by email
         target = None
         if user_id:
@@ -1785,8 +1784,8 @@ def admin_generate_qr(user):
             except Exception:
                 return None
 
-        # Compute first name preference: provided name > stored user.name
-        first_name = extract_first_name(raw_name) or extract_first_name(getattr(target, 'name', '') or '')
+        # Use stored user.name only
+        first_name = extract_first_name(getattr(target, 'name', '') or '')
 
         # Create token (<= 2 minutes)
         token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
