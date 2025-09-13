@@ -187,8 +187,8 @@ export default function BrandedSidebar({ name, reducedMotion = false }) {
             
             <div className="qr-section">
               <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.bestdentistduluth.com/login"
-                alt="QR Code for Duluth Dental Center"
+                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.dentivolve.com/"
+                alt="QR Code for Dentivolve"
                 style={{
                   width: '180px',
                   height: '180px',
