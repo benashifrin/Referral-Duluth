@@ -8,7 +8,7 @@ const IDLE_HIDE_MS = 4000;
 export default function TVsPage() {
   const [visibleUI, setVisibleUI] = useState(true);
   const [name, setName] = useState(() => localStorage.getItem('welcomeName') || 'Duluth Dental Center');
-  const [showBrandedContent, setShowBrandedContent] = useState(false);
+  const [showBrandedContent, setShowBrandedContent] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fsRef = useRef(null);
@@ -82,26 +82,10 @@ export default function TVsPage() {
     }
   };
 
-  // Branded content timer system - 5 minutes on, 1 minute overlay
+  // Always show branded content (no delay, unlimited duration)
   useEffect(() => {
-    const showBrandedContentCycle = () => {
-      // Show branded content overlay (no video pause)
-      setShowBrandedContent(true);
-      
-      // Hide after 1 minute
-      hideContentTimer.current = setTimeout(() => {
-        setShowBrandedContent(false);
-      }, 60 * 1000); // 1 minute
-    };
-
-    // Start after 5 minutes, then repeat every 6 minutes (5min video + 1min overlay)
-    const initialTimer = setTimeout(() => {
-      showBrandedContentCycle();
-      brandedContentTimer.current = setInterval(showBrandedContentCycle, 6 * 60 * 1000); // 6 minutes
-    }, 5 * 60 * 1000); // 5 minutes
-
+    setShowBrandedContent(true);
     return () => {
-      clearTimeout(initialTimer);
       if (brandedContentTimer.current) {
         clearInterval(brandedContentTimer.current);
       }
