@@ -1,4 +1,5 @@
 import React from 'react';
+import QRCode from 'react-qr-code';
 
 export default function BrandedSidebar({ name, reducedMotion = false }) {
   const welcomeText = name === 'Duluth Dental Center' 
@@ -186,17 +187,24 @@ export default function BrandedSidebar({ name, reducedMotion = false }) {
             </div>
             
             <div className="qr-section">
-              <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.dentivolve.com/"
-                alt="QR Code for Dentivolve"
+              <div
+                aria-label="QR Code for Duluth Dental Center"
                 style={{
-                  width: '180px',
-                  height: '180px',
+                  width: 180,
+                  height: 180,
                   border: '2px solid #0b1324',
-                  borderRadius: '12px',
-                  display: 'block'
+                  borderRadius: 12,
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: 'white'
                 }}
-              />
+              >
+                <QRCode
+                  value="https://www.bestdentistduluth.com/login"
+                  size={168}
+                  style={{ width: '90%', height: '90%' }}
+                />
+              </div>
             </div>
             
             <div className="cta-text">
