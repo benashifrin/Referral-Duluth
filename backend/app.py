@@ -2142,7 +2142,7 @@ def referral_welcome():
   <body>
       <div class=\"container\">
 
-      <div class=\"steps\">
+      <div class=\"card\">\n        <div class=\"row\">\n          <input class=\"input\" id=\"refLink\" value=\"{referral_link}\" readonly />\n          <button class=\"btn\" id=\"copyBtn2\">Copy</button>\n        </div>\n      </div>\n\n      <div class=\"steps\"> 
         <div class=\"step-card\">
           <div class=\"step-icon\">
             <!-- Share (outline) -->
