@@ -2132,7 +2132,7 @@ def referral_welcome():
       @media (min-width: 640px) {{ .step-title {{ font-size: 19px; }} .step-desc {{ font-size: 15px; }} }}
       .muted {{ color: #555; }}
       .row {{ display: grid; grid-template-columns: 1fr; gap: 12px; }}
-      @media (min-width: 740px) {{ .row {{ grid-template-columns: 1fr auto; }} }}
+      @media (min-width: 740px) {{ .row {{ grid-template-columns: 1fr auto auto; }} }}
       .input {{ width: 100%; min-height: 44px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; font-size: 16px; }}
       .toast {{ position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 14px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); display: none; }}
       .footer {{ font-size: 12px; color: #666; margin: 24px 8px; text-align: center; }}
@@ -2142,7 +2142,7 @@ def referral_welcome():
   <body>
       <div class=\"container\">
 
-      <div class=\"card\">\n        <div class=\"row\">\n          <input class=\"input\" id=\"refLink\" value=\"{referral_link}\" readonly />\n          <button class=\"btn\" id=\"copyBtn2\">Copy</button>\n        </div>\n      </div>\n\n      <div class=\"steps\"> 
+      <div class=\"card\">\n        <div class=\"row\">\n          <input class=\"input\" id=\"refLink\" value=\"{referral_link}\" readonly />\n          <button class=\"btn\" id=\"copyBtn2\" data-copy=\"1\">Copy</button>\n          <button class=\"btn\" data-share=\"1\">Share</button>\n        </div>\n      </div>\n\n      <div class=\"steps\"> 
         <div class=\"step-card\">
           <div class=\"step-icon\">
             <!-- Share (outline) -->
@@ -2175,7 +2175,7 @@ def referral_welcome():
       <div class=\"card\">
         <div class=\"row\">
           <input class=\"input\" id=\"refLink\" value=\"{referral_link}\" readonly />
-          <button class=\"btn\" id=\"copyBtn2\">Copy</button>
+          <button class=\"btn\" id=\"copyBtn2\" data-copy=\"1\">Copy</button>\n          <button class=\"btn\" data-share=\"1\">Share</button>
         </div>
       </div>
 
@@ -2195,6 +2195,19 @@ def referral_welcome():
       const toasts = document.getElementById('toast');
       function showToast() {{ toasts.style.display = 'block'; setTimeout(() => toasts.style.display = 'none', 2000); }}
       async function copy() {{ try {{ await navigator.clipboard.writeText(link); showToast(); }} catch(e) {{ console.log(e); }} }}
+      async function share() {{
+        try {{
+          if (navigator.share) {{
+            await navigator.share({{ title: 'Your referral link', url: link }});
+          }} else {{
+            await navigator.clipboard.writeText(link);
+            showToast();
+          }}
+        }} catch(e) {{ console.log(e); }}
+      }}
+      // Attach to all copy/share buttons
+      try {{ document.querySelectorAll('[data-copy]').forEach(el => el.addEventListener('click', copy)); }} catch(e) {{}}
+      try {{ document.querySelectorAll('[data-share]').forEach(el => el.addEventListener('click', share)); }} catch(e) {{}}
       const _btn1 = document.getElementById('copyBtn'); if (_btn1) _btn1.addEventListener('click', copy);
       const _btn2 = document.getElementById('copyBtn2'); if (_btn2) _btn2.addEventListener('click', copy);
     </script>
