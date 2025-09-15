@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { API_URL } from '../services/api';
-import QRCode from 'react-qr-code';
 
 const FADE_MS = 400;
 
@@ -81,7 +80,7 @@ export default function ReferralProgram() {
   const hideTimerRef = useRef(null);
   const socketRef = useRef(null);
 
-  const resetTimer = (ms = 600000) => {
+  const resetTimer = (ms = 120000) => {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
       setQrUrl(null);
@@ -125,7 +124,7 @@ export default function ReferralProgram() {
           }
           setIsFading(false);
           // Keep QR visible for 10 minutes
-          resetTimer(600000);
+          resetTimer(120000);
           try {
             const computedFirst = (typeof first_name === 'string' && first_name.trim()) ? first_name.trim().match(/[A-Za-z][A-Za-z\-']*/)?.[0] || '' : '';
             const computedFromWelcome = (typeof welcome_name === 'string' && welcome_name.trim()) ? welcome_name.trim().match(/[A-Za-z][A-Za-z\-']*/)?.[0] || '' : '';
@@ -187,9 +186,7 @@ export default function ReferralProgram() {
               ) : null}
               <div className="qr-container" style={fadingStyle}>
                 <div className="qr-glow" />
-                <div className="qr-code" style={{ display: 'grid', placeItems: 'center', background: 'rgba(0,0,0,0.05)' }}>
-                  <QRCode value="https://www.dentivolve.com/" size={220} style={{ width: '100%', height: '100%' }} />
-                </div>
+                <img src={qrUrl} alt="Referral QR" className="qr-code" />
               </div>
               <p className="scan-text"><span className="scan-pill">Scan this code to view your referral code.</span></p>
             </div>
