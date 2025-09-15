@@ -480,7 +480,7 @@ def on_join_qr_display():
     if admins_env:
         configured_admins = [e.strip().lower() for e in admins_env.split(',') if e.strip()]
     else:
-        configured_admins = [os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com').strip().lower()]
+        configured_admins = [os.getenv('ADMIN_EMAIL', 'drtshifrin@gmail.com').strip().lower()]
 
     logger.info(f"Configured admin emails: {configured_admins}")
 
@@ -1024,7 +1024,7 @@ def send_otp():
             # Fallback for local/dev or demo accounts: allow proceeding even if email failed
             demo_users = {
                 'demo@duluthdentalcenter.com': '123456',
-                'admin@dentaloffice.com': '123456',
+                'drtshifrin@gmail.com': '123456',
                 'user@demo.com': '123456'
             }
             allow_fake = (os.getenv('FLASK_ENV') != 'production') and (os.getenv('DEV_ALLOW_FAKE_OTP') in ('1', 'true', 'True', 'yes', 'on'))
@@ -1045,7 +1045,7 @@ def send_otp():
             # Same fallback for dev/demo
             demo_users = {
                 'demo@duluthdentalcenter.com': '123456',
-                'admin@dentaloffice.com': '123456',
+                'drtshifrin@gmail.com': '123456',
                 'user@demo.com': '123456'
             }
             allow_fake = (os.getenv('FLASK_ENV') != 'production') and (os.getenv('DEV_ALLOW_FAKE_OTP') in ('1', 'true', 'True', 'yes', 'on'))
@@ -1138,7 +1138,7 @@ def verify_otp():
         # Demo mode: Accept specific demo credentials
         demo_users = {
             'demo@duluthdentalcenter.com': '123456',
-            'admin@dentaloffice.com': '123456',
+            'drtshifrin@gmail.com': '123456',
             'user@demo.com': '123456'
         }
         
@@ -1178,7 +1178,7 @@ def verify_otp():
             if admins_env:
                 configured_admins = [e.strip().lower() for e in admins_env.split(',') if e.strip()]
             else:
-                configured_admins = [os.getenv('ADMIN_EMAIL', 'admin@dentaloffice.com').strip().lower()]
+                configured_admins = [os.getenv('ADMIN_EMAIL', 'drtshifrin@gmail.com').strip().lower()]
 
             if email.lower() in configured_admins and not user.is_admin:
                 user.is_admin = True

@@ -33,7 +33,7 @@ const LoginPage = ({ onLogin }) => {
     setLoading(true);
     
     // Check if this is a demo email
-    const demoEmails = ['demo@duluthdentalcenter.com', 'admin@dentaloffice.com', 'user@demo.com'];
+  const demoEmails = ['demo@duluthdentalcenter.com', 'drtshifrin@gmail.com', 'user@demo.com'];
     const normEmail = email.toLowerCase().trim();
     const isDemoEmail = demoEmails.includes(normEmail);
     

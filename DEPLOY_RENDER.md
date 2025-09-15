@@ -32,7 +32,7 @@ If you prefer to set up services manually:
    FLASK_ENV=production
    SECRET_KEY=(auto-generate)
    DATABASE_URL=(from PostgreSQL service)
-   ADMIN_EMAIL=admin@dentaloffice.com
+   ADMIN_EMAIL=drtshifrin@gmail.com
    
    # Optional email settings (app works without these)
    SMTP_SERVER=smtp.gmail.com
@@ -67,7 +67,7 @@ After deployment, you can use these demo credentials:
 - OTP: `123456`
 
 **Admin User:**
-- Email: `admin@dentaloffice.com`  
+- Email: `drtshifrin@gmail.com`  
 - OTP: `123456`
 
 ## ⚙️ Important Notes

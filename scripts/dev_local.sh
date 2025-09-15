@@ -46,8 +46,8 @@ export DEV_INSECURE_COOKIES=1
 # Allow OTP fallback without an email provider set
 export DEV_ALLOW_FAKE_OTP=1
 # Ensure admin bootstrap
-export ADMIN_EMAIL="admin@dentaloffice.com"
-export ADMIN_EMAILS="admin@dentaloffice.com"
+export ADMIN_EMAIL="drtshifrin@gmail.com"
+export ADMIN_EMAILS="drtshifrin@gmail.com"
 # Use localhost for QR links during local development
 export CUSTOM_DOMAIN="http://localhost:${PORT}"
 export PORT

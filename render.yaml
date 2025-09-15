@@ -15,7 +15,7 @@ services:
           name: dental-referral-db
           property: connectionString
       - key: ADMIN_EMAIL
-        value: admin@dentaloffice.com
+        value: drtshifrin@gmail.com
       - key: SMTP_SERVER
         value: smtp.gmail.com
       - key: SMTP_PORT

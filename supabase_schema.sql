@@ -50,5 +50,5 @@ CREATE INDEX idx_otp_tokens_expires_at ON otp_tokens(expires_at);
 
 -- Insert admin user (update email as needed)
 INSERT INTO users (email, referral_code, is_admin) 
-VALUES ('admin@dentaloffice.com', 'ADMIN123', TRUE)
+VALUES ('drtshifrin@gmail.com', 'ADMIN123', TRUE)
 ON CONFLICT (email) DO NOTHING;

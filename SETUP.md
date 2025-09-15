@@ -41,7 +41,7 @@ SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
-ADMIN_EMAIL=admin@dentaloffice.com
+ADMIN_EMAIL=drtshifrin@gmail.com
 DATABASE_URL=sqlite:///database.db
 ```
 
