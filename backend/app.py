@@ -1933,11 +1933,15 @@ def admin_generate_qr(user):
         raw_name = (data.get('name') or '').strip()
         raw_staff = (data.get('staff') or '').strip()
         staff = canonicalize_staff(raw_staff)
-        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}' staff='{staff}'")
+        logger.info(
+            "[QR][DEBUG] incoming payload user_id=%s email=%s name_raw='%s' staff_raw='%s' staff='%s'",
+            user_id, email_override, raw_name, raw_staff, staff
+        )
         # Resolve target user either by explicit user_id or by email
         target = None
         if user_id:
             target = User.query.get_or_404(int(user_id))
+            logger.info("[QR][DEBUG] resolved target by id=%s (email=%s, existing_name='%s')", target.id, target.email, getattr(target, 'name', None))
         
         chosen_email = email_override
         # If no explicit email override, fall back to target's email (if present)
@@ -1961,6 +1965,8 @@ def admin_generate_qr(user):
                 db.session.add(target)
                 db.session.commit()
                 logger.info(f"[QR] Created user {target.id} for email {chosen_email}")
+            else:
+                logger.info("[QR][DEBUG] resolved target by email (id=%s, existing_name='%s')", target.id, getattr(target, 'name', None))
 
         # Validate email format
         try:
@@ -1971,11 +1977,40 @@ def admin_generate_qr(user):
         # If staff provided, persist on target user (overwrite or set if missing)
         try:
             if staff:
+                prev_staff = getattr(target, 'signed_up_by_staff', None)
                 target.signed_up_by_staff = staff
                 db.session.commit()
-                logger.info(f"[QR] Set user.signed_up_by_staff='{staff}' for user_id={target.id}")
+                logger.info("[QR][DEBUG] staff persisted user_id=%s prev='%s' new='%s'", target.id, prev_staff, staff)
         except Exception as _e:
             logger.warning(f"[QR] Failed to persist staff on user: {_e}")
+
+        # If admin typed a name for a new/manual user, persist it so it appears in All Users
+        try:
+            if raw_name:
+                # Clean and collapse whitespace; limit length
+                safe_name = re.sub(r'\s+', ' ', raw_name).strip()[:100]
+                current_name = (getattr(target, 'name', None) or '').strip()
+                logger.info("[QR][DEBUG] name persistence attempt user_id=%s raw='%s' safe='%s' prev='%s'", target.id, raw_name, safe_name, current_name)
+                if safe_name and safe_name != current_name:
+                    target.name = safe_name
+                    db.session.commit()
+                    logger.info("[QR][DEBUG] name persisted user_id=%s new='%s'", target.id, safe_name)
+                else:
+                    logger.info("[QR][DEBUG] name not changed user_id=%s (safe='%s', prev='%s')", target.id, safe_name, current_name)
+            else:
+                logger.info("[QR][DEBUG] no raw_name provided; skipping name persistence user_id=%s", target.id)
+        except Exception as _e:
+            logger.warning(f"[QR] Failed to persist name on user: {_e}")
+
+        # Final snapshot after persistence
+        try:
+            db.session.refresh(target)
+        except Exception:
+            pass
+        logger.info(
+            "[QR][DEBUG] final snapshot user_id=%s email=%s name='%s' staff='%s'",
+            getattr(target, 'id', None), getattr(target, 'email', None), getattr(target, 'name', None), getattr(target, 'signed_up_by_staff', None)
+        )
 
         # Helper: extract first name via regex (letters + common separators)
         def extract_first_name(s: str):
@@ -2060,7 +2095,7 @@ def admin_generate_qr(user):
         except Exception as e:
             logger.warning(f"[QR] Failed to send magic link email: {e}")
 
-        return jsonify({'message': 'QR generated', 'qr_url': data_uri, 'expires_at': expires_at, 'landing_url': url})
+        return jsonify({'message': 'QR generated', 'qr_url': data_uri, 'expires_at': expires_at, 'landing_url': url, 'user': target.to_dict()})
     except Exception as e:
         db.session.rollback()
         logger.error(f"/admin/generate_qr error: {e}")
