@@ -2076,13 +2076,18 @@ def referral_welcome():
         tok = OnboardingToken.query.get(t)
         if not tok:
             return Response('<h1>Link expired or invalid</h1>', status=400)
-        if not tok.is_valid():
+        # Allow previously used tokens to remain valid forever once opened.
+        # Only block if never used AND past initial expiry window.
+        if tok.used_at is None and datetime.utcnow() >= tok.expires_at:
             return Response('<h1>Link expired</h1>', status=400)
 
-        # Mark used and commit
-        tok.mark_used()
-        db.session.commit()
-        logger.info(f"[QR] Token used jti={tok.jti} user_id={tok.user_id} ip={request.remote_addr}")
+        # Mark used on first open and commit; keep usable afterwards
+        if tok.used_at is None:
+            tok.mark_used()
+            db.session.commit()
+            logger.info(f"[QR] Token used jti={tok.jti} user_id={tok.user_id} ip={request.remote_addr}")
+        else:
+            logger.info(f"[QR] Token reused jti={tok.jti} user_id={tok.user_id} ip={request.remote_addr}")
 
         # Clear QR on iPad
         try:
@@ -2133,7 +2138,10 @@ def referral_welcome():
       .muted {{ color: #555; }}
       .row {{ display: grid; grid-template-columns: 1fr; gap: 12px; }}
       @media (min-width: 740px) {{ .row {{ grid-template-columns: 1fr auto auto; }} }}
+      /* Hide duplicate lower copy section (card immediately after steps) */
+      .steps + .card {{ display: none; }}
       .input {{ width: 100%; min-height: 44px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; font-size: 16px; }}
+      .hidden {{ display: none; }}
       .toast {{ position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 14px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); display: none; }}
       .footer {{ font-size: 12px; color: #666; margin: 24px 8px; text-align: center; }}
       a.terms {{ color: var(--blue); text-decoration: none; }}
