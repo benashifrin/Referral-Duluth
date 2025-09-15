@@ -181,8 +181,9 @@ const AdminDashboard = ({ user }) => {
     setGeneratingQR(true);
     try {
       const savedName = (selectedPatient && selectedPatient.name ? String(selectedPatient.name).trim() : '');
-      const typedFromSearch = (!selectedPatient && searchQ ? String(searchQ).trim() : '');
-      const nameForPayload = selectedPatient ? undefined : (typedFromSearch || undefined);
+      // Always prefer what admin typed in the Find patient box if present
+      const typedFromSearch = (searchQ ? String(searchQ).trim() : '');
+      const nameForPayload = typedFromSearch || undefined;
       const nameSource = savedName ? 'saved' : (typedFromSearch ? 'typed_from_search' : 'none');
       const welcomeNamePreview = savedName || typedFromSearch || '';
       // Compute first name that the iPad will display
@@ -211,6 +212,9 @@ const AdminDashboard = ({ user }) => {
         // Example: http://localhost:5001/r/welcome?t=...
         console.log('[QR] Landing URL:', res.landing_url);
       }
+      if (res?.user) {
+        console.log('[QR] Server saved user snapshot:', { email: res.user.email, savedName: res.user.name, savedStaff: res.user.signed_up_by_staff });
+      }
       toast.success('QR sent to iPad display');
 
       // Refresh users to reflect persisted Staff/Name values, then log what shows in the table
@@ -221,12 +225,24 @@ const AdminDashboard = ({ user }) => {
         setUsersPages(after.pages);
         if (emailForLog) {
           const found = (after.users || []).find(u => String(u.email || '').toLowerCase() === emailForLog.toLowerCase());
-          console.log('[Users] Persisted name check:', {
-            email: emailForLog,
-            expectedName: welcomeNamePreview,
-            savedName: found?.name || '',
-            match: ((found?.name || '').trim().toLowerCase() === (welcomeNamePreview || '').trim().toLowerCase())
-          });
+          if (found) {
+            console.log('[Users] Persisted name check:', {
+              email: emailForLog,
+              expectedName: welcomeNamePreview,
+              savedName: found?.name || '',
+              match: ((found?.name || '').trim().toLowerCase() === (welcomeNamePreview || '').trim().toLowerCase())
+            });
+          } else {
+            // Not on this page; fetch by email filter to verify
+            const verify = await adminAPI.getUsers(1, 25, emailForLog);
+            const hit = (verify.users || []).find(u => String(u.email || '').toLowerCase() === emailForLog.toLowerCase());
+            console.log('[Users] Persisted name check (via email search):', {
+              email: emailForLog,
+              expectedName: welcomeNamePreview,
+              savedName: hit?.name || '',
+              match: ((hit?.name || '').trim().toLowerCase() === (welcomeNamePreview || '').trim().toLowerCase())
+            });
+          }
         }
       } catch (e) {
         console.warn('[Users] Failed to refresh users after QR generation:', e);
