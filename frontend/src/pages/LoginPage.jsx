@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 
 const LoginPage = ({ onLogin }) => {
   const [step, setStep] = useState(1); // 1: email, 2: OTP
+  const [mode, setMode] = useState('password'); // 'password' | 'otp'
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const STAFF_MEMBERS = ["Amanda", "Taquila", "Monti", "Sanita", "Ben"];
@@ -155,10 +156,18 @@ const LoginPage = ({ onLogin }) => {
         }
       }
       
-      console.log(`[Mobile Debug] Setting user in app state`);
-      onLogin(result.user);
-      toast.success('Login successful!');
-      console.log(`[Mobile Debug] Login process completed successfully`);
+      // After OTP verify, require set-password if needed
+      try {
+        const me = await authAPI.getCurrentUser();
+        if (me.must_set_password) {
+          window.location.href = '/set-password';
+          return;
+        }
+        onLogin(me.user);
+      } catch {
+        onLogin(result.user);
+      }
+      toast.success('OTP verified');
     } catch (error) {
       console.error(`[Mobile Debug] OTP verification failed:`, error);
       console.error(`[Mobile Debug] Error details:`, {
@@ -217,6 +226,29 @@ const LoginPage = ({ onLogin }) => {
     }
   };
 
+  const handlePasswordLogin = async (e) => {
+    e.preventDefault();
+    if (!isValidEmail(email)) {
+      toast.error('Enter a valid email');
+      return;
+    }
+    if (!otp.trim()) { /* reuse OTP state as password field in password mode */
+      toast.error('Enter your password');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await authAPI.loginWithPassword(email.toLowerCase().trim(), otp);
+      toast.success('Logged in');
+      if (typeof onLogin === 'function') onLogin(res.user);
+      window.location.href = '/';
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-blue-50">
       <div className="mx-auto w-full max-w-sm sm:max-w-md">
@@ -235,7 +267,53 @@ const LoginPage = ({ onLogin }) => {
 
       <div className="mt-6 sm:mt-8 mx-auto w-full max-w-sm sm:max-w-md">
         <div className="card">
-          {step === 1 ? (
+          {mode === 'password' ? (
+            <form onSubmit={handlePasswordLogin} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-3">Email Address</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
+                    className="input-field pl-12 h-12 text-base"
+                    placeholder="Enter your email address"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-3">Password</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="input-field h-12 text-base"
+                  placeholder="Your password"
+                  disabled={loading}
+                />
+              </div>
+
+              <button type="submit" disabled={loading || !email.trim() || !otp.trim()} className="w-full btn-primary h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed">
+                {loading ? (<><LoadingSpinner size="sm" className="mr-2" /> Signing in…</>) : (<><Send className="h-4 w-4 mr-2" /> Sign In</>)}
+              </button>
+
+              <div className="text-center">
+                <button type="button" className="text-sm text-primary-600" onClick={() => { setMode('otp'); setStep(1); }}>First time or no password? Use a code</button>
+              </div>
+            </form>
+          ) : step === 1 ? (
             <form onSubmit={handleSendOTP} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-3">
@@ -277,6 +355,9 @@ const LoginPage = ({ onLogin }) => {
                   </>
                 )}
               </button>
+              <div className="text-center">
+                <button type="button" className="text-sm text-primary-600" onClick={() => setMode('password')}>Sign in with password</button>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleVerifyOTP} className="space-y-6">
@@ -388,6 +469,7 @@ const LoginPage = ({ onLogin }) => {
                 >
                   Use a different email address
                 </button>
+                <button type="button" className="text-sm text-primary-600" onClick={() => setMode('password')}>Sign in with password</button>
               </div>
             </form>
           )}

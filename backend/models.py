@@ -16,6 +16,9 @@ class User(db.Model):
     signed_up_by_staff = db.Column(db.String(50), nullable=True)
     name = db.Column(db.String(100), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
+    # Password-based auth (optional; present once user sets a password)
+    password_hash = db.Column(db.String(255), nullable=True)
+    password_set_at = db.Column(db.DateTime, nullable=True)
     
     # Relationship to referrals made by this user
     referrals_made = db.relationship('Referral', foreign_keys='Referral.referrer_id', backref='referrer', lazy='dynamic')
@@ -82,6 +85,8 @@ class User(db.Model):
             'signed_up_by_staff': self.signed_up_by_staff,
             'name': self.name,
             'phone': self.phone,
+            # Do not expose password hash
+            'has_password': bool(self.password_hash),
         }
 
 class Referral(db.Model):

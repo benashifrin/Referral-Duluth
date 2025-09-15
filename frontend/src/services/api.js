@@ -98,6 +98,10 @@ api.interceptors.response.use(
 
 // Authentication API
 export const authAPI = {
+  loginWithPassword: async (email, password) => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  },
   sendOTP: async (email) => {
     const response = await api.post('/auth/send-otp', { email });
     return response.data;
@@ -108,6 +112,10 @@ export const authAPI = {
     if (staff) payload.staff = staff;
     if (name) payload.name = name;
     const response = await api.post('/auth/verify-otp', payload);
+    return response.data;
+  },
+  setPassword: async (password, confirm) => {
+    const response = await api.post('/auth/set-password', { password, confirm });
     return response.data;
   },
   

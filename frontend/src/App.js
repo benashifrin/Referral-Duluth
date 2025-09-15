@@ -5,6 +5,7 @@ import { authAPI, handleAPIError } from './services/api';
 import Header from './components/Header';
 import LoadingSpinner from './components/LoadingSpinner';
 import LoginPage from './pages/LoginPage';
+import SetPasswordPage from './pages/SetPassword';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import QuotePage from './pages/QuotePage';
@@ -24,7 +25,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/qrcode', '/referralprogram', '/scan', '/tvs', '/ddcinfo'];
+      const publicRoutes = ['/login', '/quote', '/qrcode', '/referralprogram', '/scan', '/tvs', '/ddcinfo', '/set-password'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
@@ -34,6 +35,10 @@ function App() {
         const response = await authAPI.getCurrentUser();
         setUser(response.user);
         setAuthenticated(true);
+        if (response.must_set_password && window.location.pathname !== '/set-password') {
+          window.location.replace('/set-password');
+          return;
+        }
       } catch (error) {
         // User not authenticated, which is fine
         setAuthenticated(false);
@@ -150,11 +155,16 @@ function App() {
               path="/quote" 
               element={<QuotePage />} 
             />
-
+            
             {/* QR Code page */}
             <Route 
               path="/qrcode" 
               element={<DemoPage />} 
+            />
+            {/* Set Password page */}
+            <Route
+              path="/set-password"
+              element={<SetPasswordPage />}
             />
 
             {/* Referral Program iPad page */}

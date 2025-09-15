@@ -11,6 +11,7 @@ import sys
 import uuid
 import base64
 from io import BytesIO
+from werkzeug.security import generate_password_hash, check_password_hash
 try:
     from email_validator import validate_email, EmailNotValidError
 except ImportError:
@@ -302,6 +303,24 @@ with app.app_context():
                     logger.info('Added column user.phone')
                 except Exception as e:
                     logger.warning(f'Could not add user.phone: {e}')
+
+            # Add user.password_hash column if missing
+            if 'password_hash' not in user_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN password_hash VARCHAR(255)'))
+                    db.session.commit()
+                    logger.info('Added column user.password_hash')
+                except Exception as e:
+                    logger.warning(f'Could not add user.password_hash: {e}')
+
+            # Add user.password_set_at column if missing
+            if 'password_set_at' not in user_cols:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN password_set_at TIMESTAMP'))
+                    db.session.commit()
+                    logger.info('Added column user.password_set_at')
+                except Exception as e:
+                    logger.warning(f'Could not add user.password_set_at: {e}')
 
         # Add Referral.signed_up_by_staff and Referral.origin if missing
         if 'referral' in insp.get_table_names():
@@ -920,6 +939,15 @@ def require_auth():
                 print(f"Cookies received: {list(request.cookies.keys())}")
                 
                 return jsonify({'error': 'Authentication required'}), 401
+            # Gate access if user must set a password (OTP verified session)
+            try:
+                must_set = session.get('must_set_password') is True
+                path = request.path or ''
+                allowed_paths = {'/auth/me', '/auth/set-password', '/auth/logout'}
+                if must_set and path not in allowed_paths:
+                    return jsonify({'error': 'Must set password', 'must_set_password': True}), 403
+            except Exception:
+                pass
             return f(user, *args, **kwargs)
         wrapper.__name__ = f.__name__
         return wrapper
@@ -932,6 +960,9 @@ def require_admin():
             user = get_current_user()
             if not user or not user.is_admin:
                 return jsonify({'error': 'Admin privileges required'}), 403
+            # Block admin access until password is set
+            if session.get('must_set_password') is True:
+                return jsonify({'error': 'Must set password', 'must_set_password': True}), 403
             return f(user, *args, **kwargs)
         wrapper.__name__ = f.__name__
         return wrapper
@@ -1187,12 +1218,19 @@ def verify_otp():
                 logger.warning(f"[{request_id}] OTP VERIFY - Failed to persist user staff: {str(_e)}")
             logger.info(f"[{request_id}] OTP VERIFY - Staff in session: {resolved_staff}")
 
-        # Set session with mobile browser compatibility
+        # If user already has a password, do not allow OTP to grant full access; require password login
+        if getattr(user, 'password_hash', None):
+            logger.info(f"[{request_id}] OTP VERIFY - User has password; rejecting OTP login for {email}")
+            return jsonify({'error': 'Password required. Please sign in with your email and password.'}), 400
+
+        # Set session with mobile browser compatibility (gated: must set password)
         logger.info(f"[{request_id}] SESSION SET - Before: {list(session.keys())}")
         logger.info(f"[{request_id}] SESSION SET - Session interface type: {type(app.session_interface).__name__}")
         
         session['user_id'] = user.id
         session['user_email'] = user.email
+        session['otp_verified'] = True
+        session['must_set_password'] = True
         session.permanent = True
         
         # Force session to be marked as modified
@@ -1223,9 +1261,10 @@ def verify_otp():
         
         # Create manual response to ensure session cookie is set
         response_data = {
-            'message': 'Login successful',
+            'message': 'OTP verified; must set password',
             'user': user.to_dict(),
-            'stats': user.get_referral_stats()
+            'stats': user.get_referral_stats(),
+            'must_set_password': True
         }
         
         response = make_response(jsonify(response_data))
@@ -1275,13 +1314,82 @@ def logout(user):
     session.clear()
     return jsonify({'message': 'Logged out successfully'})
 
+@app.route('/auth/login', methods=['POST'])
+@limiter.limit("10 per minute")
+def password_login():
+    """Email + password login for users who have set a password."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        password = data.get('password') or ''
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+        user = User.query.filter_by(email=email).first()
+        if not user or not getattr(user, 'password_hash', None):
+            return jsonify({'error': 'Password not set for this account. Use OTP to set a password.'}), 400
+        if not check_password_hash(user.password_hash, password):
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        # Establish session
+        session.clear()
+        session['user_id'] = user.id
+        session['user_email'] = user.email
+        session['must_set_password'] = False
+        session.pop('otp_verified', None)
+        session.permanent = True
+
+        return jsonify({
+            'message': 'Login successful',
+            'user': user.to_dict(),
+            'stats': user.get_referral_stats()
+        })
+    except Exception as e:
+        logger.error(f"/auth/login error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/auth/set-password', methods=['POST'])
+@limiter.limit("5 per minute")
+@require_auth()
+def set_password(user):
+    """Set a persistent password after OTP verification. Requires must_set_password session flag."""
+    try:
+        if not session.get('otp_verified') or not session.get('must_set_password'):
+            return jsonify({'error': 'Not authorized to set password'}), 403
+        data = request.get_json(silent=True) or {}
+        password = (data.get('password') or '').strip()
+        confirm = (data.get('confirm') or '').strip()
+        if not password or not confirm:
+            return jsonify({'error': 'Password and confirmation are required'}), 400
+        if password != confirm:
+            return jsonify({'error': 'Passwords do not match'}), 400
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+        user.password_hash = generate_password_hash(password)
+        user.password_set_at = datetime.utcnow()
+        db.session.commit()
+
+        # Clear gating flags; keep user logged in
+        session['must_set_password'] = False
+        session.pop('otp_verified', None)
+
+        return jsonify({
+            'message': 'Password set successfully',
+            'user': user.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"/auth/set-password error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/auth/me', methods=['GET'])
 @require_auth()
 def get_current_user_info(user):
     """Get current user information"""
     return jsonify({
         'user': user.to_dict(),
-        'stats': user.get_referral_stats()
+        'stats': user.get_referral_stats(),
+        'must_set_password': bool(session.get('must_set_password'))
     })
 
 # Referral Routes
