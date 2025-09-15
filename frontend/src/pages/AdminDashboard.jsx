@@ -43,6 +43,9 @@ const AdminDashboard = ({ user }) => {
   const [clearingQR, setClearingQR] = useState(false);
   const STAFF_MEMBERS = ['Ben', 'Taquila', 'Monti', 'Amanda', 'Sanita'];
   const [qrStaff, setQrStaff] = useState('');
+  // For logging verification that a manually-entered name persisted to All Users
+  const [lastGenEmail, setLastGenEmail] = useState('');
+  const [lastGenExpectedName, setLastGenExpectedName] = useState('');
   // CSV upload state
   const [csvFile, setCsvFile] = useState(null);
   const [uploadingCsv, setUploadingCsv] = useState(false);
@@ -197,6 +200,10 @@ const AdminDashboard = ({ user }) => {
         source: nameSource,
         selectedPatientId: selectedPatient?.id || null,
       });
+      // Track the expected persisted name and target email for verification after refresh
+      const emailForLog = (selectedPatient?.email || qrEmail || '').trim();
+      setLastGenEmail(emailForLog);
+      setLastGenExpectedName(welcomeNamePreview);
 
       const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail, nameForPayload, qrStaff);
       if (res?.landing_url) {
@@ -205,6 +212,25 @@ const AdminDashboard = ({ user }) => {
         console.log('[QR] Landing URL:', res.landing_url);
       }
       toast.success('QR sent to iPad display');
+
+      // Refresh users to reflect persisted Staff/Name values, then log what shows in the table
+      try {
+        const after = await adminAPI.getUsers(usersPage, 25);
+        setUsers(after.users);
+        setUsersPage(after.current_page);
+        setUsersPages(after.pages);
+        if (emailForLog) {
+          const found = (after.users || []).find(u => String(u.email || '').toLowerCase() === emailForLog.toLowerCase());
+          console.log('[Users] Persisted name check:', {
+            email: emailForLog,
+            expectedName: welcomeNamePreview,
+            savedName: found?.name || '',
+            match: ((found?.name || '').trim().toLowerCase() === (welcomeNamePreview || '').trim().toLowerCase())
+          });
+        }
+      } catch (e) {
+        console.warn('[Users] Failed to refresh users after QR generation:', e);
+      }
     } catch (err) {
       toast.error(handleAPIError(err));
     } finally {
