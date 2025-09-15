@@ -6,6 +6,7 @@ import Header from './components/Header';
 import LoadingSpinner from './components/LoadingSpinner';
 import LoginPage from './pages/LoginPage';
 import SetPasswordPage from './pages/SetPassword';
+import ResetPasswordPage from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import QuotePage from './pages/QuotePage';
@@ -25,7 +26,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check if already authenticated or on public pages
-      const publicRoutes = ['/login', '/quote', '/qrcode', '/referralprogram', '/scan', '/tvs', '/ddcinfo', '/set-password'];
+      const publicRoutes = ['/login', '/quote', '/qrcode', '/referralprogram', '/scan', '/tvs', '/ddcinfo', '/set-password', '/reset-password'];
       if (authenticated || publicRoutes.includes(window.location.pathname)) {
         setLoading(false);
         return;
@@ -165,6 +166,11 @@ function App() {
             <Route
               path="/set-password"
               element={<SetPasswordPage />}
+            />
+            {/* Reset Password page */}
+            <Route
+              path="/reset-password"
+              element={<ResetPasswordPage />}
             />
 
             {/* Referral Program iPad page */}

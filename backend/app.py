@@ -1314,6 +1314,91 @@ def logout(user):
     session.clear()
     return jsonify({'message': 'Logged out successfully'})
 
+@app.route('/auth/password-reset/request', methods=['POST'])
+@limiter.limit("5 per minute")
+def password_reset_request():
+    """Initiate password reset by sending an OTP to the user's email.
+    Always return 200 to avoid leaking which emails exist.
+    """
+    request_id = getattr(request, 'id', 'unknown')
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        if not email:
+            return jsonify({'message': 'If this email exists, a code has been sent.'})
+        try:
+            validate_email(email)
+        except EmailNotValidError:
+            return jsonify({'message': 'If this email exists, a code has been sent.'})
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Do not leak existence
+            return jsonify({'message': 'If this email exists, a code has been sent.'})
+
+        # Issue OTP token for reset
+        otp_token = OTPToken(email=email)
+        db.session.add(otp_token)
+        db.session.commit()
+
+        try:
+            email_service.send_otp_email(email, otp_token.token)
+            logger.info(f"[{request_id}] PASSWORD RESET OTP sent to {email}")
+        except Exception as e:
+            logger.warning(f"[{request_id}] PASSWORD RESET email failed: {e}")
+        # Always generic response
+        return jsonify({'message': 'If this email exists, a code has been sent.'})
+    except Exception as e:
+        logger.error(f"[{request_id}] /auth/password-reset/request error: {e}")
+        return jsonify({'message': 'If this email exists, a code has been sent.'})
+
+@app.route('/auth/password-reset/confirm', methods=['POST'])
+@limiter.limit("10 per minute")
+def password_reset_confirm():
+    """Confirm password reset with email + OTP + new password."""
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+        token = (data.get('token') or '').strip()
+        password = (data.get('password') or '').strip()
+        confirm = (data.get('confirm') or '').strip()
+
+        if not email or not token or not password or not confirm:
+            return jsonify({'error': 'Email, token, password and confirmation are required'}), 400
+        if password != confirm:
+            return jsonify({'error': 'Passwords do not match'}), 400
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Generic to avoid enumeration
+            return jsonify({'error': 'Invalid or expired code'}), 400
+
+        otp_token = OTPToken.query.filter_by(email=email, token=token, used=False).first()
+        if not otp_token or not otp_token.is_valid():
+            return jsonify({'error': 'Invalid or expired code'}), 400
+
+        # Consume token and set new password
+        otp_token.use_token()
+        user.password_hash = generate_password_hash(password)
+        user.password_set_at = datetime.utcnow()
+        db.session.commit()
+
+        # Log the user in after reset
+        session.clear()
+        session['user_id'] = user.id
+        session['user_email'] = user.email
+        session['must_set_password'] = False
+        session.pop('otp_verified', None)
+        session.permanent = True
+
+        return jsonify({'message': 'Password reset successful', 'user': user.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"/auth/password-reset/confirm error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/auth/login', methods=['POST'])
 @limiter.limit("10 per minute")
 def password_login():

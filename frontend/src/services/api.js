@@ -118,6 +118,14 @@ export const authAPI = {
     const response = await api.post('/auth/set-password', { password, confirm });
     return response.data;
   },
+  requestPasswordReset: async (email) => {
+    const response = await api.post('/auth/password-reset/request', { email });
+    return response.data;
+  },
+  confirmPasswordReset: async ({ email, token, password, confirm }) => {
+    const response = await api.post('/auth/password-reset/confirm', { email, token, password, confirm });
+    return response.data;
+  },
   
   logout: async () => {
     const response = await api.post('/auth/logout');
