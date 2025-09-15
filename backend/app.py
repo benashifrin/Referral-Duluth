@@ -1931,7 +1931,9 @@ def admin_generate_qr(user):
         user_id = data.get('user_id') or data.get('patient_id')
         email_override = (data.get('email') or '').strip().lower() or None
         raw_name = (data.get('name') or '').strip()
-        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}'")
+        raw_staff = (data.get('staff') or '').strip()
+        staff = canonicalize_staff(raw_staff)
+        logger.info(f"[QR] generate_qr payload user_id={user_id} email_override={email_override} raw_name='{raw_name}' staff='{staff}'")
         # Resolve target user either by explicit user_id or by email
         target = None
         if user_id:
@@ -1965,6 +1967,15 @@ def admin_generate_qr(user):
             validate_email(chosen_email)
         except EmailNotValidError:
             return jsonify({'error': 'Invalid email address'}), 400
+
+        # If staff provided, persist on target user (overwrite or set if missing)
+        try:
+            if staff:
+                target.signed_up_by_staff = staff
+                db.session.commit()
+                logger.info(f"[QR] Set user.signed_up_by_staff='{staff}' for user_id={target.id}")
+        except Exception as _e:
+            logger.warning(f"[QR] Failed to persist staff on user: {_e}")
 
         # Helper: extract first name via regex (letters + common separators)
         def extract_first_name(s: str):

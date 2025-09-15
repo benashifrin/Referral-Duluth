@@ -41,6 +41,8 @@ const AdminDashboard = ({ user }) => {
   const [qrEmail, setQrEmail] = useState('');
   const [generatingQR, setGeneratingQR] = useState(false);
   const [clearingQR, setClearingQR] = useState(false);
+  const STAFF_MEMBERS = ['Ben', 'Taquila', 'Monti', 'Amanda', 'Sanita'];
+  const [qrStaff, setQrStaff] = useState('');
   // CSV upload state
   const [csvFile, setCsvFile] = useState(null);
   const [uploadingCsv, setUploadingCsv] = useState(false);
@@ -196,7 +198,7 @@ const AdminDashboard = ({ user }) => {
         selectedPatientId: selectedPatient?.id || null,
       });
 
-      const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail, nameForPayload);
+      const res = await adminAPI.generateReferralQR(selectedPatient?.id, qrEmail, nameForPayload, qrStaff);
       if (res?.landing_url) {
         // Log landing URL for debugging/visibility in Chrome console
         // Example: http://localhost:5001/r/welcome?t=...
@@ -406,6 +408,17 @@ const AdminDashboard = ({ user }) => {
                 value={qrEmail}
                 onChange={(e) => setQrEmail(e.target.value)}
               />
+              <label className="block text-sm font-medium text-gray-700 mb-1 mt-3">Staff</label>
+              <select
+                className="input-field w-full"
+                value={qrStaff}
+                onChange={(e) => setQrStaff(e.target.value)}
+              >
+                <option value="">Select staff</option>
+                {STAFF_MEMBERS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               <button
                 onClick={handleGenerateQR}
                 disabled={generatingQR || (!selectedPatient && !qrEmail)}
