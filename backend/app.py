@@ -1673,64 +1673,61 @@ def track_referral_click(referral_code):
             </div>
             
             <script>
-                async function signupReferral(event) {{
-                    event.preventDefault();
-                    const name = document.getElementById('name').value;
-                    const phone = document.getElementById('phone').value;
-                    const email = document.getElementById('email').value;
-                    
-                    const submitButton = event.target.querySelector('button[type="submit"]');
-                    const originalText = submitButton.textContent;
-                    submitButton.textContent = 'Submitting...';
-                    submitButton.disabled = true;
-                    
-                    try {{
-                        const response = await fetch('/api/referral/signup', {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{ 
-                                name: name,
-                                phone: phone,
-                                email: email
-                            }})
-                        }});
-                        
-                        const result = await response.json();
-                        if (response.ok) {{
-                            const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}}[c]));
-                            const safeName = escapeHtml(name);
-                            document.querySelector('.form-container').innerHTML = `
-                                <div style="text-align: center; padding: 40px 20px;">
-                                    <div style="background: #dcfce7; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 2px solid #16a34a;">
-                                        <h2 style="color: #16a34a; margin-bottom: 15px;">✅ Step 1 Complete!</h2>
-                                        <p style="font-size: 16px; color: #166534; margin: 0;">Thank you, ${{safeName}}! We've received your information.</p>
-                                    </div>
-                                    
-                                    <div style="background: #0891b2; color: white; padding: 30px; border-radius: 15px; margin: 20px 0;">
-                                        <h2 style="margin: 0 0 15px 0; font-size: 28px;">📞 Step 2: Call Us Now!</h2>
-                                        <div style="font-size: 32px; font-weight: bold; margin: 15px 0; letter-spacing: 2px;">(770)-232-5255</div>
-                                        <p style="font-size: 16px; margin: 15px 0; opacity: 0.9;">Speak with our scheduling team to book your appointment</p>
-                                        <a href="tel:+14048892305" style="background: #0f766e; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block; margin: 10px 0;">📞 Call Duluth Dental Center</a>
-                                    </div>
-                                    
-                                    <div style="background: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; color: #374151;">
-                                        <p style="margin: 0; font-size: 14px;"><strong>Office Hours:</strong></p>
-                                        <p style="margin: 5px 0; font-size: 14px;">Monday - Thursday: 8:00 AM - 4:00 PM</p>
-                                        <p style="margin: 5px 0; font-size: 14px;">We're ready to schedule your appointment!</p>
-                                    </div>
-                                </div>
-                            `;
-                        }} else {{
-                            alert(result.error || 'An error occurred. Please try again or call us at (770)-232-5255');
-                            submitButton.textContent = originalText;
-                            submitButton.disabled = false;
-                        }}
-                    }} catch (error) {{
-                        alert('Network error. Please try again or call us at (770)-232-5255');
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                    }}
-                }}
+              (function(){
+                function escapeHtml(s){
+                  return String(s).replace(/[&<>"']/g, function(c){
+                    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[c];
+                  });
+                }
+                async function doSignup(name, phone, email, form){
+                  const btn = form.querySelector('button[type="submit"]');
+                  const originalText = btn ? btn.textContent : '';
+                  if (btn){ btn.textContent = 'Submitting...'; btn.disabled = true; }
+                  try {
+                    const resp = await fetch('/api/referral/signup', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ name, phone, email })
+                    });
+                    const result = await resp.json().catch(()=>({}));
+                    if (resp.ok){
+                      var safeName = escapeHtml(name||'');
+                      document.querySelector('.form-container').innerHTML = '<div style="text-align:center; padding:40px 20px;">'
+                        + '<div style="background:#dcfce7; padding:20px; border-radius:10px; margin-bottom:30px; border:2px solid #16a34a;">'
+                        + '<h2 style="color:#16a34a; margin-bottom:15px;">✅ Step 1 Complete!</h2>'
+                        + '<p style="font-size:16px; color:#166534; margin:0;">Thank you, ' + safeName + '! We\'ve received your information.</p>'
+                        + '</div>'
+                        + '<div style="background:#0891b2; color:white; padding:30px; border-radius:15px; margin:20px 0;">'
+                        + '<h2 style="margin:0 0 15px 0; font-size:28px;">📞 Step 2: Call Us Now!</h2>'
+                        + '<div style="font-size:32px; font-weight:bold; margin:15px 0; letter-spacing:2px;">(770)-232-5255</div>'
+                        + '<p style="font-size:16px; margin:15px 0; opacity:0.9;">Speak with our scheduling team to book your appointment</p>'
+                        + '<a href="tel:+14048892305" style="background:#0f766e; color:white; padding:15px 30px; border-radius:8px; text-decoration:none; font-weight:600; font-size:18px; display:inline-block; margin:10px 0;">📞 Call Duluth Dental Center</a>'
+                        + '</div>'
+                        + '<div style="background:#f8fafc; padding:20px; border-radius:10px; margin:20px 0; color:#374151;">'
+                        + '<p style="margin:0; font-size:14px;"><strong>Office Hours:</strong></p>'
+                        + '<p style="margin:5px 0; font-size:14px;">Monday - Thursday: 8:00 AM - 4:00 PM</p>'
+                        + '<p style="margin:5px 0; font-size:14px;">We\'re ready to schedule your appointment!</p>'
+                        + '</div>'
+                        + '</div>';
+                    } else {
+                      alert((result && result.error) || 'An error occurred. Please try again or call us at (770)-232-5255');
+                      if (btn){ btn.textContent = originalText; btn.disabled = false; }
+                    }
+                  } catch (e){
+                    alert('Network error. Please try again or call us at (770)-232-5255');
+                    if (btn){ btn.textContent = originalText; btn.disabled = false; }
+                  }
+                }
+                window.signupReferral = function(e){
+                  e.preventDefault();
+                  var form = e.target;
+                  var name = document.getElementById('name') ? document.getElementById('name').value : '';
+                  var phone = document.getElementById('phone') ? document.getElementById('phone').value : '';
+                  var email = document.getElementById('email') ? document.getElementById('email').value : '';
+                  doSignup(name, phone, email, form);
+                };
+              })();
             </script>
         </body>
         </html>
