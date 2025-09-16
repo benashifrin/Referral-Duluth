@@ -33,6 +33,7 @@ const AdminDashboard = ({ user }) => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [deletingUserId, setDeletingUserId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [usersSearchQ, setUsersSearchQ] = useState('');
   // QR display state
   const [searchQ, setSearchQ] = useState('');
   const [searching, setSearching] = useState(false);
@@ -287,10 +288,10 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
-  const loadUsers = async (page = 1) => {
+  const loadUsers = async (page = 1, q) => {
     try {
       setUsersLoading(true);
-      const data = await adminAPI.getUsers(page, 20);
+      const data = await adminAPI.getUsers(page, 25, typeof q === 'string' ? q : usersSearchQ);
       setUsers(data.users);
       setUsersPage(data.current_page);
       setUsersPages(data.pages);
@@ -299,6 +300,12 @@ const AdminDashboard = ({ user }) => {
     } finally {
       setUsersLoading(false);
     }
+  };
+
+  const handleUsersSearch = async (e) => {
+    if (e) e.preventDefault();
+    setUsersPage(1);
+    await loadUsers(1, usersSearchQ.trim());
   };
 
   const handleUserCompletedAdjust = async (u, nextCompleted) => {
@@ -723,9 +730,23 @@ const AdminDashboard = ({ user }) => {
         <div className="card mt-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">All Users</h2>
-            <button onClick={() => loadUsers(usersPage)} className="btn-secondary">
-              {usersLoading ? 'Loading...' : 'Reload Users'}
-            </button>
+            <div className="flex items-center gap-2">
+              <form onSubmit={handleUsersSearch} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={usersSearchQ}
+                  onChange={(e) => setUsersSearchQ(e.target.value)}
+                  className="input-field"
+                  placeholder="Search users by name or email"
+                  style={{ minWidth: 260 }}
+                />
+                <button type="submit" className="btn-secondary">Search</button>
+                <button type="button" className="btn-secondary" onClick={() => { setUsersSearchQ(''); loadUsers(1, ''); }}>Clear</button>
+              </form>
+              <button onClick={() => loadUsers(usersPage)} className="btn-secondary">
+                {usersLoading ? 'Loading...' : 'Reload Users'}
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

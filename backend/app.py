@@ -1854,7 +1854,8 @@ def admin_list_users(user):
 
         query = User.query
         if q:
-            query = query.filter(User.email.ilike(f"%{q}%"))
+            q_like = f"%{q}%"
+            query = query.filter((User.email.ilike(q_like)) | (User.name.ilike(q_like)))
 
         pagination = query.order_by(User.created_at.desc()).paginate(
             page=page,
