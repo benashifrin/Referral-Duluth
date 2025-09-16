@@ -1646,7 +1646,7 @@ def track_referral_click(referral_code):
                 
                 <h3 style="text-align: center; color: #374151; margin: 30px 0 20px 0;">Step 1: Your Information</h3>
                 
-                <form onsubmit="signupReferral(event)">
+                <form id="refForm">
                     <div class="form-group">
                         <label for="name">Full Name *</label>
                         <input type="text" id="name" placeholder="Enter your full name" required>
@@ -1727,6 +1727,18 @@ def track_referral_click(referral_code):
                   var email = document.getElementById('email') ? document.getElementById('email').value : '';
                   doSignup(name, phone, email, form);
                 }};
+                try {{
+                  var _f = document.getElementById('refForm');
+                  if (_f) {{
+                    _f.addEventListener('submit', function(ev){{
+                      ev.preventDefault();
+                      var name = document.getElementById('name') ? document.getElementById('name').value : '';
+                      var phone = document.getElementById('phone') ? document.getElementById('phone').value : '';
+                      var email = document.getElementById('email') ? document.getElementById('email').value : '';
+                      doSignup(name, phone, email, _f);
+                    }});
+                  }}
+                }} catch(_e) {{}}
               }})();
             </script>
         </body>
