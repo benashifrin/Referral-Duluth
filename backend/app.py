@@ -1683,6 +1683,7 @@ def track_referral_click(referral_code):
                   const btn = form.querySelector('button[type="submit"]');
                   const originalText = btn ? btn.textContent : '';
                   if (btn){{ btn.textContent = 'Submitting...'; btn.disabled = true; }}
+                  try {{ console.log('[RefSignup] submitting', {{ name: name, email: email, phone: phone }}); }} catch(_e){{}}
                   try {{
                     const resp = await fetch('/api/referral/signup', {{
                       method: 'POST',
@@ -1691,7 +1692,7 @@ def track_referral_click(referral_code):
                       body: JSON.stringify({{ name, phone, email }})
                     }});
                     const result = await resp.json().catch(()=>({{}}));
-                    if (resp.ok){{
+                    if (resp.ok){{ try {{ console.log('[RefSignup] success: advancing to step 2'); }} catch(_e){{}};
                       var safeName = escapeHtml(name||'');
                       document.querySelector('.form-container').innerHTML = '<div style="text-align:center; padding:40px 20px;">'
                         + '<div style="background:#dcfce7; padding:20px; border-radius:10px; margin-bottom:30px; border:2px solid #16a34a;">'
@@ -1710,11 +1711,11 @@ def track_referral_click(referral_code):
                         + '<p style="margin:5px 0; font-size:14px;">We\'re ready to schedule your appointment!</p>'
                         + '</div>'
                         + '</div>';
-                    }} else {{
+                    }} else {{ try {{ console.log('[RefSignup] failed', {{ status: resp.status, body: result }}); }} catch(_e){{}};
                       alert((result && result.error) || 'An error occurred. Please try again or call us at (770)-232-5255');
                       if (btn){{ btn.textContent = originalText; btn.disabled = false; }}
                     }}
-                  }} catch (e){{
+                  }} catch (e){{ try {{ console.log('[RefSignup] network error', e); }} catch(_e){{}};
                     alert('Network error. Please try again or call us at (770)-232-5255');
                     if (btn){{ btn.textContent = originalText; btn.disabled = false; }}
                   }}
@@ -1725,16 +1726,19 @@ def track_referral_click(referral_code):
                   var name = document.getElementById('name') ? document.getElementById('name').value : '';
                   var phone = document.getElementById('phone') ? document.getElementById('phone').value : '';
                   var email = document.getElementById('email') ? document.getElementById('email').value : '';
+                  try {{ console.log('[RefSignup] inline handler invoked'); }} catch(_e){{}}
                   doSignup(name, phone, email, form);
                 }};
                 try {{
                   var _f = document.getElementById('refForm');
                   if (_f) {{
+                    try {{ console.log('[RefSignup] attaching submit listener'); }} catch(_e){{}}
                     _f.addEventListener('submit', function(ev){{
                       ev.preventDefault();
                       var name = document.getElementById('name') ? document.getElementById('name').value : '';
                       var phone = document.getElementById('phone') ? document.getElementById('phone').value : '';
                       var email = document.getElementById('email') ? document.getElementById('email').value : '';
+                      try {{ console.log('[RefSignup] submit event', {{ name: name, email: email, phone: phone }}); }} catch(_e){{}}
                       doSignup(name, phone, email, _f);
                     }});
                   }}
