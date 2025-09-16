@@ -169,6 +169,8 @@ const AdminDashboard = ({ user }) => {
   const selectPatient = (p) => {
     setSelectedPatient(p);
     setQrEmail(p.email || '');
+    // Autofill the search box with the full saved name (or email as fallback)
+    setSearchQ(p.name || p.email || '');
     setSearchResults([]);
   };
 
@@ -181,9 +183,9 @@ const AdminDashboard = ({ user }) => {
     setGeneratingQR(true);
     try {
       const savedName = (selectedPatient && selectedPatient.name ? String(selectedPatient.name).trim() : '');
-      // Always prefer what admin typed in the Find patient box if present
-      const typedFromSearch = (searchQ ? String(searchQ).trim() : '');
-      const nameForPayload = typedFromSearch || undefined;
+      // Prefer the selected patient's saved name; if no patient selected, fall back to typed input
+      const typedFromSearch = (!selectedPatient && searchQ ? String(searchQ).trim() : '');
+      const nameForPayload = savedName || (typedFromSearch || undefined);
       const nameSource = savedName ? 'saved' : (typedFromSearch ? 'typed_from_search' : 'none');
       const welcomeNamePreview = savedName || typedFromSearch || '';
       // Compute first name that the iPad will display
