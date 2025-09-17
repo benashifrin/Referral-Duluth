@@ -309,9 +309,13 @@ const LoginPage = ({ onLogin }) => {
                 {loading ? (<><LoadingSpinner size="sm" className="mr-2" /> Signing in…</>) : (<><Send className="h-4 w-4 mr-2" /> Sign In</>)}
               </button>
 
-              <div className="flex items-center justify-between text-sm">
-                <button type="button" className="text-primary-600" onClick={() => { setMode('otp'); setStep(1); }}>First time or no password? Use a code</button>
-                <a href="/reset-password" className="text-primary-600">Forgot password?</a>
+              <div className="flex flex-col space-y-3 text-center">
+                <button type="button" className="text-xs sm:text-sm text-primary-600 hover:text-primary-500 leading-tight px-4" onClick={() => { setMode('otp'); setStep(1); }}>
+                  First time or no password? Use a code
+                </button>
+                <a href="/reset-password" className="text-xs sm:text-sm text-primary-600 hover:text-primary-500 leading-tight px-4">
+                  Forgot password?
+                </a>
               </div>
             </form>
           ) : step === 1 ? (
