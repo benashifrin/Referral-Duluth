@@ -15,11 +15,19 @@ class EmailService:
         self.email_password = os.getenv('EMAIL_PASSWORD')
         
     def send_otp_email(self, recipient_email, otp_code):
-        """Send OTP code via email"""
+        """Send signup link and instructions via email"""
         try:
+            # Get the login URL
+            base_domain = os.getenv('CUSTOM_DOMAIN', 'https://www.bestdentistduluth.com')
+            if not base_domain.startswith('http'):
+                base_domain = f"https://{base_domain}"
+            if base_domain.endswith('/'):
+                base_domain = base_domain.rstrip('/')
+            login_url = f"{base_domain}/login"
+            
             # Create message
             message = MIMEMultipart("alternative")
-            message["Subject"] = "Your Dental Office Referral Program Login Code"
+            message["Subject"] = "Welcome to Duluth Dental Center Referral Program"
             message["From"] = self.email_user
             message["To"] = recipient_email
             
@@ -28,25 +36,54 @@ class EmailService:
             <html>
               <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;">
-                  <h1 style="margin: 0; font-size: 28px;">🦷 Dental Referral Program</h1>
-                  <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your login verification code</p>
+                  <h1 style="margin: 0; font-size: 28px;">🦷 Welcome to Duluth Dental Center</h1>
+                  <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Join our referral program and start earning rewards</p>
                 </div>
                 
                 <div style="padding: 40px 20px; text-align: center;">
-                  <h2 style="color: #333; margin-bottom: 20px;">Your verification code is:</h2>
+                  <h2 style="color: #333; margin-bottom: 20px;">Hi there!</h2>
                   
-                  <div style="background: #f8f9fa; border: 2px dashed #667eea; border-radius: 10px; padding: 30px; margin: 30px 0;">
-                    <span style="font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 8px;">{otp_code}</span>
+                  <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                    Thank you for your interest in joining our referral program. Getting started is easy!
+                  </p>
+                  
+                  <div style="background: #f8f9fa; border-radius: 10px; padding: 30px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #333; margin-top: 0;">HOW TO SIGN UP:</h3>
+                    <ol style="color: #666; font-size: 16px; line-height: 1.8;">
+                      <li>Click the link below to access the signup page</li>
+                      <li>Enter your email address</li>
+                      <li>Enter your verification code when prompted</li>
+                      <li>Access your complete dashboard to view all your referrals and track rewards</li>
+                    </ol>
                   </div>
                   
-                  <p style="color: #666; font-size: 14px; line-height: 1.5;">
-                    This code will expire in <strong>10 minutes</strong>.<br>
-                    If you didn't request this code, please ignore this email.
-                  </p>
+                  <div style="margin: 40px 0;">
+                    <a href="{login_url}" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block;">
+                      🚀 CLICK HERE TO SIGN UP
+                    </a>
+                  </div>
+                  
+                  <div style="background: #e8f5e8; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #2d5016; margin-top: 0;">WHAT YOU'LL GET:</h3>
+                    <ul style="color: #2d5016; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                      <li>Earn rewards for each successful referral</li>
+                      <li>Complete dashboard to view all your referrals</li>
+                      <li>Track referral status and reward history</li>
+                      <li>See when friends complete their first visit</li>
+                    </ul>
+                  </div>
+                  
+                  <div style="background: #f0f8ff; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #1e40af; margin-top: 0;">NEED HELP?</h3>
+                    <p style="color: #1e40af; font-size: 16px; margin: 0;">
+                      Call us at <strong>(770) 232-5255</strong> during office hours:<br>
+                      Monday - Thursday: 8:00 AM - 4:00 PM
+                    </p>
+                  </div>
                   
                   <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
                     <p style="color: #888; font-size: 12px; margin: 0;">
-                      This is an automated message from your Dental Office Referral Program.
+                      This is an automated message from Duluth Dental Center.
                     </p>
                   </div>
                 </div>
@@ -56,14 +93,31 @@ class EmailService:
             
             # Create the plain-text alternative
             text = f"""
-            Dental Office Referral Program
-            
-            Your verification code is: {otp_code}
-            
-            This code will expire in 10 minutes.
-            If you didn't request this code, please ignore this email.
-            
-            This is an automated message from your Dental Office Referral Program.
+            Welcome to Duluth Dental Center Referral Program
+
+            Hi there!
+
+            Thank you for your interest in joining our referral program. Getting started is easy!
+
+            HOW TO SIGN UP:
+            1. Click the link below to access the signup page
+            2. Enter your email address
+            3. Enter your verification code when prompted
+            4. Access your complete dashboard to view all your referrals and track rewards
+
+            SIGN UP HERE: {login_url}
+
+            WHAT YOU'LL GET:
+            • Earn rewards for each successful referral
+            • Complete dashboard to view all your referrals
+            • Track referral status and reward history  
+            • See when friends complete their first visit
+
+            NEED HELP?
+            Call us at (770) 232-5255 during office hours:
+            Monday - Thursday: 8:00 AM - 4:00 PM
+
+            This is an automated message from Duluth Dental Center.
             """
             
             # Turn these into plain/html MIMEText objects
