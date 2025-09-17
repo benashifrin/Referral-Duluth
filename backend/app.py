@@ -74,6 +74,10 @@ app.config['SESSION_COOKIE_MAX_AGE'] = 86400  # 24 hours
 cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN')
 if cookie_domain:
     app.config['SESSION_COOKIE_DOMAIN'] = cookie_domain
+else:
+    # Default to subdomain-compatible domain for production
+    if PRODUCTION:
+        app.config['SESSION_COOKIE_DOMAIN'] = '.bestdentistduluth.com'
 # Remove SESSION_TYPE, SESSION_USE_SIGNER, and other complex settings
 # Let Flask use its default session interface
 
@@ -1575,6 +1579,10 @@ def track_referral_click(referral_code):
         # Store referrer info in session for potential signup
         session['referrer_id'] = referrer.id
         session['referrer_code'] = referral_code
+        try:
+            logger.info(f"[REF] Session set for referral click: referrer_id={referrer.id}, code={referral_code}, ip={request.remote_addr}")
+        except Exception:
+            pass
         
         # Build share/preview metadata
         domain = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
@@ -1784,10 +1792,13 @@ def signup_referral():
         
         # Validate required fields
         if not name:
+            logger.warning(f"[{request_id}] SIGNUP VALIDATION - Missing name")
             return jsonify({'error': 'Name is required'}), 400
         if not phone:
+            logger.warning(f"[{request_id}] SIGNUP VALIDATION - Missing phone")
             return jsonify({'error': 'Phone number is required'}), 400
         if not email:
+            logger.warning(f"[{request_id}] SIGNUP VALIDATION - Missing email")
             return jsonify({'error': 'Email is required'}), 400
         # Staff optional on public form; if missing, try session value captured at login
         if not staff:
@@ -1797,11 +1808,14 @@ def signup_referral():
         try:
             validate_email(email)
         except EmailNotValidError:
+            logger.warning(f"[{request_id}] SIGNUP VALIDATION - Invalid email: {email}")
             return jsonify({'error': 'Invalid email format'}), 400
         
         # Check if there's a referrer in session
         referrer_id = session.get('referrer_id')
+        logger.info(f"[{request_id}] SIGNUP CONTEXT - referrer_id in session: {referrer_id}, cookies: {list(request.cookies.keys())}")
         if not referrer_id:
+            logger.warning(f"[{request_id}] SIGNUP ABORT - No referrer in session (did user come via /ref/<code>? )")
             return jsonify({'error': 'No referral information found'}), 400
         
         referrer = User.query.get(referrer_id)
@@ -1832,6 +1846,10 @@ def signup_referral():
         referral.origin = 'link'
         db.session.add(referral)
         db.session.commit()
+        try:
+            logger.info(f"[{request_id}] SIGNUP SUCCESS - referral_id={referral.id} referrer_id={referrer_id} email={email} name='{name}' phone='{phone}' staff='{staff}'")
+        except Exception:
+            pass
         
         # Send notification to referrer with detailed info
         referral_info = f"{name} ({email})"
@@ -1851,7 +1869,7 @@ def signup_referral():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error processing referral signup: {str(e)}")
+        logger.error(f"[{request_id}] SIGNUP ERROR - {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 # Admin Routes
