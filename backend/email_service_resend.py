@@ -10,7 +10,7 @@ class EmailService:
         resend.api_key = os.getenv('RESEND_API_KEY')
         self.from_email = os.getenv('EMAIL_USER', 'noreply@bestdentistduluth.com')
         
-    def send_otp_email(self, recipient_email, otp_code):
+    def send_otp_email(self, recipient_email, otp_code, user=None):
         """Send signup link and instructions via email using Resend"""
         try:
             # Get the login URL
@@ -20,6 +20,11 @@ class EmailService:
             if base_domain.endswith('/'):
                 base_domain = base_domain.rstrip('/')
             login_url = f"{base_domain}/login"
+            
+            # Get user's referral link if user exists
+            referral_link = None
+            if user and hasattr(user, 'referral_code') and user.referral_code:
+                referral_link = f"{base_domain}/ref/{user.referral_code}"
             
             # Create the HTML content
             html = f"""
@@ -63,6 +68,18 @@ class EmailService:
                     </ul>
                   </div>
                   
+                  {f'''
+                  <div style="background: #fef3c7; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #92400e; margin-top: 0;">🔗 YOUR PERSONAL REFERRAL LINK:</h3>
+                    <div style="background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                      <a href="{referral_link}" style="color: #92400e; text-decoration: none; font-weight: 600; word-break: break-all;">{referral_link}</a>
+                    </div>
+                    <p style="color: #92400e; font-size: 14px; margin: 10px 0 0 0;">
+                      Share this link with friends and family to start earning rewards!
+                    </p>
+                  </div>
+                  ''' if referral_link else ''}
+                  
                   <div style="background: #f0f8ff; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
                     <h3 style="color: #1e40af; margin-top: 0;">NEED HELP?</h3>
                     <p style="color: #1e40af; font-size: 16px; margin: 0;">
@@ -103,7 +120,12 @@ class EmailService:
             • Track referral status and reward history  
             • See when friends complete their first visit
 
-            NEED HELP?
+            {f'''YOUR PERSONAL REFERRAL LINK:
+            {referral_link}
+            
+            Share this link with friends and family to start earning rewards!
+            
+            ''' if referral_link else ''}NEED HELP?
             Call us at (770) 232-5255 during office hours:
             Monday - Thursday: 8:00 AM - 4:00 PM
 

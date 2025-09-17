@@ -1011,12 +1011,13 @@ def send_otp():
         # Send email (in production, you'd want to do this asynchronously)
         try:
             logger.info(f"[{request_id}] OTP EMAIL SENDING - To: {email}, Service: {email_service.from_email}")
-            success = email_service.send_otp_email(email, otp_token.token)
+            # Get existing user for referral link
+            existing_user = User.query.filter_by(email=email).first()
+            success = email_service.send_otp_email(email, otp_token.token, existing_user)
             logger.info(f"[{request_id}] OTP EMAIL RESULT - Success: {success}")
 
             # Return success if email was sent
             if success:
-                existing_user = User.query.filter_by(email=email).first()
                 has_staff = bool(existing_user and getattr(existing_user, 'signed_up_by_staff', None))
                 return jsonify({
                     'message': 'OTP sent to your email',
