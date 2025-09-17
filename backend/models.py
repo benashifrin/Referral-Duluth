@@ -219,14 +219,17 @@ class OnboardingToken(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_by_admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
-    user = db.relationship('User', backref=db.backref('onboarding_tokens', lazy='dynamic'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('onboarding_tokens', lazy='dynamic'))
+    generated_by_admin = db.relationship('User', foreign_keys=[generated_by_admin_id])
 
-    def __init__(self, user_id, email_used=None, ttl_seconds=120):
+    def __init__(self, user_id, email_used=None, ttl_seconds=120, generated_by_admin_id=None):
         self.jti = uuid.uuid4().hex
         self.user_id = user_id
         self.email_used = email_used
         self.expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+        self.generated_by_admin_id = generated_by_admin_id
 
     def is_valid(self):
         return (self.used_at is None) and (datetime.utcnow() < self.expires_at)

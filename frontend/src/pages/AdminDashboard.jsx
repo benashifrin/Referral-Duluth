@@ -51,6 +51,12 @@ const AdminDashboard = ({ user }) => {
   const [csvFile, setCsvFile] = useState(null);
   const [uploadingCsv, setUploadingCsv] = useState(false);
   const [lastImportSummary, setLastImportSummary] = useState(null);
+  
+  // QR Generations state
+  const [qrGenerations, setQrGenerations] = useState([]);
+  const [qrGenerationsPage, setQrGenerationsPage] = useState(1);
+  const [qrGenerationsPages, setQrGenerationsPages] = useState(1);
+  const [qrGenerationsLoading, setQrGenerationsLoading] = useState(true);
 
   const loadStats = async () => {
     try {
@@ -72,9 +78,23 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
+  const loadQRGenerations = async (page = 1) => {
+    try {
+      setQrGenerationsLoading(true);
+      const data = await adminAPI.getQRGenerations(page, 20);
+      setQrGenerations(data.qr_generations);
+      setQrGenerationsPage(data.pagination.page);
+      setQrGenerationsPages(data.pagination.pages);
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setQrGenerationsLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadStats(), loadReferrals(currentPage, statusFilter), loadUsers(usersPage)]);
+    await Promise.all([loadStats(), loadReferrals(currentPage, statusFilter), loadUsers(usersPage), loadQRGenerations(qrGenerationsPage)]);
     setRefreshing(false);
     toast.success('Dashboard refreshed');
   };
@@ -141,7 +161,7 @@ const AdminDashboard = ({ user }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([loadStats(), loadReferrals(), loadUsers()]);
+      await Promise.all([loadStats(), loadReferrals(), loadUsers(), loadQRGenerations()]);
       setLoading(false);
     };
     loadData();
@@ -220,8 +240,9 @@ const AdminDashboard = ({ user }) => {
       }
       toast.success('QR sent to iPad display');
 
-      // Refresh users to reflect persisted Staff/Name values, then log what shows in the table
+      // Refresh QR generations and users to reflect new data
       try {
+        await loadQRGenerations(qrGenerationsPage);
         const after = await adminAPI.getUsers(usersPage, 25);
         setUsers(after.users);
         setUsersPage(after.current_page);
@@ -723,6 +744,103 @@ const AdminDashboard = ({ user }) => {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* QR Code Generated */}
+        <div className="card mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">QR Code Generated</h2>
+          </div>
+          
+          {qrGenerationsLoading ? (
+            <div className="text-center py-8">
+              <LoadingSpinner size="lg" className="text-primary-600 mb-4" />
+              <p className="text-gray-600">Loading QR generations...</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created (ET)</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Signed Up</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Earnings</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {qrGenerations.map((qrGen) => (
+                      <tr key={qrGen.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">{qrGen.user.name || '—'}</div>
+                          <div className="text-xs text-gray-500">{qrGen.user.email}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{qrGen.created_at}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{qrGen.user.referral_code}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div>Generated by: {qrGen.generated_by_admin.name || qrGen.generated_by_admin.email}</div>
+                          <div className="text-xs text-gray-500">Assigned: {qrGen.assigned_staff || '—'}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${qrGen.signed_up ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {qrGen.signed_up ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${qrGen.completed ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {qrGen.completed ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{qrGen.total_referrals}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{formatCurrency(qrGen.earnings)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {qrGen.used_at ? `Used ${formatDateTime(qrGen.used_at)}` : 'Not used'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {qrGenerations.length === 0 && (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No QR codes generated yet
+                  </h3>
+                  <p className="text-gray-600">
+                    Generate your first QR code using the form above.
+                  </p>
+                </div>
+              )}
+
+              {/* QR Generations Pagination */}
+              {qrGenerationsPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+                  <button
+                    onClick={() => loadQRGenerations(Math.max(1, qrGenerationsPage - 1))}
+                    className="btn-secondary"
+                    disabled={qrGenerationsPage <= 1}
+                  >
+                    Previous
+                  </button>
+                  <div className="text-sm text-gray-700">Page {qrGenerationsPage} of {qrGenerationsPages}</div>
+                  <button
+                    onClick={() => loadQRGenerations(Math.min(qrGenerationsPages, qrGenerationsPage + 1))}
+                    className="btn-secondary"
+                    disabled={qrGenerationsPage >= qrGenerationsPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 

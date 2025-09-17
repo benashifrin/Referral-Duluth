@@ -246,6 +246,13 @@ export const adminAPI = {
     });
     return response.data;
   },
+  
+  // Get QR generations (admin only)
+  getQRGenerations: async (page = 1, perPage = 20) => {
+    const params = new URLSearchParams({ page, per_page: perPage });
+    const response = await api.get(`/admin/qr-generations?${params}`);
+    return response.data;
+  },
 };
 
 // Utility function to handle API errors with mobile-specific messages

@@ -2079,7 +2079,7 @@ def admin_generate_qr(user):
         first_name = extract_first_name(welcome_name)
 
         # Create token (<= 2 minutes)
-        token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
+        token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120, generated_by_admin_id=user.id)
         db.session.add(token)
         db.session.commit()
         logger.info(f"[QR] token created jti={token.jti} user_id={target.id} expires_at={token.expires_at.isoformat()}")
@@ -2144,6 +2144,85 @@ def admin_clear_qr(user):
     except Exception as e:
         logger.warning(f"[QR] SocketIO emit qr_clear failed: {e}")
         return jsonify({'error': 'Failed to clear QR'}), 500
+
+@app.route('/admin/qr-generations', methods=['GET'])
+@require_admin()
+def admin_qr_generations(user):
+    """Get paginated list of all QR generations with user and admin info"""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        # Query OnboardingToken with joined user and admin data
+        AdminUser = db.aliased(User)
+        query = db.session.query(OnboardingToken, User, AdminUser)\
+            .join(User, OnboardingToken.user_id == User.id)\
+            .outerjoin(AdminUser, OnboardingToken.generated_by_admin_id == AdminUser.id)\
+            .order_by(OnboardingToken.created_at.desc())
+        
+        # Get paginated results
+        total = query.count()
+        tokens = query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Convert to Eastern Time
+        import pytz
+        et = pytz.timezone('US/Eastern')
+        
+        results = []
+        for token, patient, admin in tokens:
+            # Get patient's referral stats
+            referral_count = Referral.query.filter_by(referrer_id=patient.id).count()
+            completed_referrals = Referral.query.filter_by(referrer_id=patient.id, status='completed').count()
+            total_earnings = Referral.query.filter_by(referrer_id=patient.id, status='completed')\
+                .with_entities(db.func.sum(Referral.earnings)).scalar() or 0
+            
+            # Check if patient has signed up (has password or made referrals)
+            has_signed_up = bool(patient.password_hash or referral_count > 0)
+            
+            # Check if patient has completed first visit (has any completed referrals as referrer or referred)
+            has_completed = bool(
+                completed_referrals > 0 or 
+                Referral.query.filter_by(referred_email=patient.email, status='completed').first()
+            )
+            
+            # Convert timestamp to ET
+            created_et = token.created_at.replace(tzinfo=pytz.UTC).astimezone(et)
+            
+            results.append({
+                'id': token.jti,
+                'user': {
+                    'id': patient.id,
+                    'name': patient.name or '',
+                    'email': patient.email,
+                    'referral_code': patient.referral_code
+                },
+                'created_at': created_et.strftime('%Y-%m-%d %I:%M %p'),
+                'generated_by_admin': {
+                    'name': admin.name if admin else 'Unknown',
+                    'email': admin.email if admin else 'Unknown'
+                },
+                'assigned_staff': patient.signed_up_by_staff or 'None',
+                'signed_up': has_signed_up,
+                'completed': has_completed,
+                'total_referrals': referral_count,
+                'earnings': float(total_earnings),
+                'used_at': token.used_at.isoformat() if token.used_at else None,
+                'expires_at': token.expires_at.isoformat()
+            })
+        
+        return jsonify({
+            'qr_generations': results,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'pages': (total + per_page - 1) // per_page
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"/admin/qr-generations failed: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/r/welcome', methods=['GET'])
 def referral_welcome():
