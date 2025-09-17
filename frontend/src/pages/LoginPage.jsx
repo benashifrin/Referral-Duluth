@@ -477,10 +477,10 @@ const LoginPage = ({ onLogin }) => {
           )}
         </div>
 
-        <div className="mt-6 text-center px-4">
-          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
-            By continuing, you agree to our terms of service and privacy policy.<br className="sm:hidden" />
-            <span className="sm:inline block mt-1"> Your email will only be used for authentication and referral notifications.</span>
+        <div className="mt-6 text-center px-6 sm:px-8">
+          <p className="text-xs text-gray-500 leading-loose max-w-sm mx-auto">
+            By continuing, you agree to our terms of service and privacy policy.
+            Your email will only be used for authentication and referral notifications.
           </p>
         </div>
       </div>
