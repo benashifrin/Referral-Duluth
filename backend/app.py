@@ -2123,7 +2123,7 @@ def admin_generate_qr(user):
 
         # Send magic link email
         try:
-            ok = email_service.send_magic_link(chosen_email, url)
+            ok = email_service.send_magic_link(chosen_email, url, target)
             logger.info(f"[QR] Magic link email send result={ok} to={chosen_email}")
         except Exception as e:
             logger.warning(f"[QR] Failed to send magic link email: {e}")
