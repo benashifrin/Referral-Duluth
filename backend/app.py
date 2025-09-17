@@ -1684,7 +1684,7 @@ def track_referral_click(referral_code):
               (function(){{
                 function escapeHtml(s){{
                   return String(s).replace(/[&<>"']/g, function(c){{
-                    return ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}})[c];
+                    return ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}})[c];
                   }});
                 }}
                 async function doSignup(name, phone, email, form){{
