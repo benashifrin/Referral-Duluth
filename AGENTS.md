@@ -105,9 +105,30 @@
 ## Socket.IO Deployment
 - For stable WebSockets in production run with eventlet/gevent workers (e.g., `gunicorn --worker-class eventlet -w 1 --chdir backend app:app`). The dev server may fall back to polling with Werkzeug.
 
+## Referral Form Fix (Sept 2025)
+**Problem**: Referral page forms (`/ref/<code>`) were not submitting data to backend.
+
+**Root Causes & Fixes**:
+1. **Session Cookie Domain Mismatch**:
+   - Issue: Cookie set for `bestdentistduluth.com` but API calls proxied to `api.bestdentistduluth.com`
+   - Fix: Set `SESSION_COOKIE_DOMAIN = '.bestdentistduluth.com'` (with leading dot) in production
+   - Location: `backend/app.py` lines 77-80
+
+2. **JavaScript Syntax Errors**:
+   - Issue: Malformed quote escaping in `escapeHtml()` function and unescaped apostrophes in strings
+   - Fix: Corrected quote syntax and replaced contractions ("We've" → "We have", "We're" → "We are")
+   - Location: `backend/app.py` JavaScript template in `track_referral_click()` route
+
+**Debugging Notes**:
+- No console logs = JavaScript syntax error preventing execution
+- Session issues return "No referral information found" from `/api/referral/signup`
+- Test with browser dev tools: Console tab for JS errors, Network tab for API calls
+- Verify cookie domain with Application tab → Cookies
+
 ## Quick Test Plan
 - OTP endpoints rate‑limit and do not leak secrets in logs.
 - `/debug/*` returns 404 with `FLASK_ENV=production`.
 - Cross‑origin POSTs are blocked unless Origin is allowed.
 - Landing pages escape user text.
 - Admin QR flow: generate/clear QR, iPad page updates, and console logs landing URLs.
+- **Referral forms**: Visit `/ref/<code>`, submit form, verify console logs and database insert.
