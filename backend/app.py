@@ -1705,7 +1705,7 @@ def track_referral_click(referral_code):
                       document.querySelector('.form-container').innerHTML = '<div style="text-align:center; padding:40px 20px;">'
                         + '<div style="background:#dcfce7; padding:20px; border-radius:10px; margin-bottom:30px; border:2px solid #16a34a;">'
                         + '<h2 style="color:#16a34a; margin-bottom:15px;">✅ Step 1 Complete!</h2>'
-                        + '<p style="font-size:16px; color:#166534; margin:0;">Thank you, ' + safeName + '! We\'ve received your information.</p>'
+                        + '<p style="font-size:16px; color:#166534; margin:0;">Thank you, ' + safeName + '! We have received your information.</p>'
                         + '</div>'
                         + '<div style="background:#0891b2; color:white; padding:30px; border-radius:15px; margin:20px 0;">'
                         + '<h2 style="margin:0 0 15px 0; font-size:28px;">📞 Step 2: Call Us Now!</h2>'
@@ -1716,7 +1716,7 @@ def track_referral_click(referral_code):
                         + '<div style="background:#f8fafc; padding:20px; border-radius:10px; margin:20px 0; color:#374151;">'
                         + '<p style="margin:0; font-size:14px;"><strong>Office Hours:</strong></p>'
                         + '<p style="margin:5px 0; font-size:14px;">Monday - Thursday: 8:00 AM - 4:00 PM</p>'
-                        + '<p style="margin:5px 0; font-size:14px;">We\'re ready to schedule your appointment!</p>'
+                        + '<p style="margin:5px 0; font-size:14px;">We are ready to schedule your appointment!</p>'
                         + '</div>'
                         + '</div>';
                     }} else {{ try {{ console.log('[RefSignup] failed', {{ status: resp.status, body: result }}); }} catch(_e){{}};
