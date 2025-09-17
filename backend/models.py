@@ -150,7 +150,7 @@ class OTPToken(db.Model):
     def __init__(self, email):
         self.email = email
         self.token = self.generate_token()
-        self.expires_at = datetime.utcnow() + timedelta(minutes=10)
+        self.expires_at = datetime.utcnow() + timedelta(days=30)
     
     def generate_token(self):
         """Generate a 6-digit OTP token"""
