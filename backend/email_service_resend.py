@@ -160,7 +160,7 @@ class EmailService:
                     "    </div>"
                     "    <div style=\"padding: 40px 20px; text-align: center;\">"
                     "      <h2 style=\"color: #333;\">Thank you for sharing your referral link.</h2>"
-                    "      <p style=\"color: #666; font-size: 16px;\">A referral associated with your link has signed up. We’ll notify you after their first appointment.</p>"
+                    "      <p style=\"color: #666; font-size: 16px;\">A referral associated with your link has signed up. We'll notify you after their first appointment.</p>"
                     "    </div>"
                     "  </body>"
                     "</html>"
@@ -205,57 +205,109 @@ class EmailService:
             return False
 
     def send_magic_link(self, recipient_email: str, url: str) -> bool:
-        """Send a short-lived magic link to the referral page and include dashboard login instructions."""
+        """Send signup link and instructions via email (replaces old magic link)"""
         try:
-            # Build dashboard login URL from CUSTOM_DOMAIN (defaults to production host)
-            base = os.getenv('CUSTOM_DOMAIN', 'https://bestdentistduluth.com')
-            if not base.startswith('http'):
-                base = f"https://{base}"
-            if base.endswith('/'):
-                login_url = base + 'login'
-            else:
-                login_url = base + '/login'
+            # Get the login URL
+            base_domain = os.getenv('CUSTOM_DOMAIN', 'https://www.bestdentistduluth.com')
+            if not base_domain.startswith('http'):
+                base_domain = f"https://{base_domain}"
+            if base_domain.endswith('/'):
+                base_domain = base_domain.rstrip('/')
+            login_url = f"{base_domain}/login"
+            
+            # Create the HTML content
             html = f"""
             <html>
-              <body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">
-                <div style=\"background: linear-gradient(135deg, #3EB489 0%, #1E90FF 100%); padding: 24px; border-radius: 10px; color: white; text-align: center;\">
-                  <h2 style=\"margin: 0;\">Duluth Dental Center</h2>
-                  <p style=\"margin: 8px 0 0; opacity: .9;\">Referral Program Access</p>
+              <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; color: white; text-align: center;">
+                  <h1 style="margin: 0; font-size: 28px;">🦷 Welcome to Duluth Dental Center</h1>
+                  <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Join our referral program and start earning rewards</p>
                 </div>
-                <div style=\"padding: 24px;\">
-                  <p style=\"color: #333;\">Tap the button to view your referral details. This link expires in about 2 minutes.</p>
-                  <p style=\"margin: 24px 0;\">
-                    <a href=\"{url}\" style=\"display: inline-block; background: #3EB489; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;\">Open Referral Page</a>
+                
+                <div style="padding: 40px 20px; text-align: center;">
+                  <h2 style="color: #333; margin-bottom: 20px;">Hi there!</h2>
+                  
+                  <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                    Thank you for your interest in joining our referral program. Getting started is easy!
                   </p>
-                  <p style=\"color: #666; font-size: 12px;\">If the button does not work, copy and paste this link into your browser:<br/>
-                  <span style=\"word-break: break-all;\">{url}</span></p>
-                </div>
-
-                <div style=\"padding: 24px; border-top: 1px solid #eee;\">
-                  <h3 style=\"margin: 0 0 10px; color: #333;\">Access Your Referral Dashboard</h3>
-                  <ol style=\"color: #444; font-size: 14px; line-height: 1.6; padding-left: 18px;\">
-                    <li>Open your dashboard: <a href=\"{login_url}\">{login_url}</a></li>
-                    <li>Sign in with your email and password.</li>
-                    <li>If it’s your first time or you don’t have a password yet, choose “First time or no password? Use a code” and follow the steps to set a password.</li>
-                  </ol>
-                  <p style=\"margin: 16px 0;\">
-                    <a href=\"{login_url}\" style=\"display: inline-block; background: #1E90FF; color: #fff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: bold;\">Open Dashboard</a>
-                  </p>
+                  
+                  <div style="background: #f8f9fa; border-radius: 10px; padding: 30px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #333; margin-top: 0;">HOW TO SIGN UP:</h3>
+                    <ol style="color: #666; font-size: 16px; line-height: 1.8;">
+                      <li>Click the link below to access the signup page</li>
+                      <li>Enter your email address</li>
+                      <li>Enter your verification code when prompted</li>
+                      <li>Access your complete dashboard to view all your referrals and track rewards</li>
+                    </ol>
+                  </div>
+                  
+                  <div style="margin: 40px 0;">
+                    <a href="{login_url}" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block;">
+                      🚀 CLICK HERE TO SIGN UP
+                    </a>
+                  </div>
+                  
+                  <div style="background: #e8f5e8; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #2d5016; margin-top: 0;">WHAT YOU'LL GET:</h3>
+                    <ul style="color: #2d5016; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                      <li>Earn rewards for each successful referral</li>
+                      <li>Complete dashboard to view all your referrals</li>
+                      <li>Track referral status and reward history</li>
+                      <li>See when friends complete their first visit</li>
+                    </ul>
+                  </div>
+                  
+                  <div style="background: #f0f8ff; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: left;">
+                    <h3 style="color: #1e40af; margin-top: 0;">NEED HELP?</h3>
+                    <p style="color: #1e40af; font-size: 16px; margin: 0;">
+                      Call us at <strong>(770) 232-5255</strong> during office hours:<br>
+                      Monday - Thursday: 8:00 AM - 4:00 PM
+                    </p>
+                  </div>
+                  
+                  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <p style="color: #888; font-size: 12px; margin: 0;">
+                      This is an automated message from Duluth Dental Center.
+                    </p>
+                  </div>
                 </div>
               </body>
             </html>
             """
-            text = (
-                f"Open your referral page (expires soon):\n{url}\n\n"
-                f"Access your referral dashboard:\n{login_url}\n"
-                "- Sign in with your email and password.\n"
-                "- First time? Choose ‘Use a code’ to set a password.\n"
-            )
+            
+            # Create the plain-text alternative
+            text = f"""
+            Welcome to Duluth Dental Center Referral Program
+
+            Hi there!
+
+            Thank you for your interest in joining our referral program. Getting started is easy!
+
+            HOW TO SIGN UP:
+            1. Click the link below to access the signup page
+            2. Enter your email address
+            3. Enter your verification code when prompted
+            4. Access your complete dashboard to view all your referrals and track rewards
+
+            SIGN UP HERE: {login_url}
+
+            WHAT YOU'LL GET:
+            • Earn rewards for each successful referral
+            • Complete dashboard to view all your referrals
+            • Track referral status and reward history  
+            • See when friends complete their first visit
+
+            NEED HELP?
+            Call us at (770) 232-5255 during office hours:
+            Monday - Thursday: 8:00 AM - 4:00 PM
+
+            This is an automated message from Duluth Dental Center.
+            """
 
             resend.Emails.send({
                 "from": self.from_email,
                 "to": [recipient_email],
-                "subject": "Your Duluth Dental Center referral link + dashboard access",
+                "subject": "Welcome to Duluth Dental Center Referral Program",
                 "html": html,
                 "text": text,
             })
