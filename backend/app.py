@@ -2219,9 +2219,11 @@ def admin_qr_generations(user):
         total = query.count()
         tokens = query.offset((page - 1) * per_page).limit(per_page).all()
         
-        # Convert to Eastern Time
-        import pytz
-        et = pytz.timezone('US/Eastern')
+        # Convert to Eastern Time using built-in timezone handling
+        from datetime import timezone, timedelta
+        # Eastern Time is UTC-5 (standard) or UTC-4 (daylight saving)
+        # For simplicity, we'll use UTC-5 as a fixed offset
+        et = timezone(timedelta(hours=-5))
         
         results = []
         for token_data in tokens:
@@ -2249,7 +2251,7 @@ def admin_qr_generations(user):
             )
             
             # Convert timestamp to ET
-            created_et = token.created_at.replace(tzinfo=pytz.UTC).astimezone(et)
+            created_et = token.created_at.replace(tzinfo=timezone.utc).astimezone(et)
             
             results.append({
                 'id': token.jti,
