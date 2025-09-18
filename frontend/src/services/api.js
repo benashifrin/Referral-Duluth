@@ -253,6 +253,12 @@ export const adminAPI = {
     const response = await api.get(`/admin/qr-generations?${params}`);
     return response.data;
   },
+  
+  // Delete QR generation (admin only)
+  deleteQRGeneration: async (tokenId) => {
+    const response = await api.delete(`/admin/qr-generation/${tokenId}`);
+    return response.data;
+  },
 };
 
 // Utility function to handle API errors with mobile-specific messages

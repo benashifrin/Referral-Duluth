@@ -57,6 +57,7 @@ const AdminDashboard = ({ user }) => {
   const [qrGenerationsPage, setQrGenerationsPage] = useState(1);
   const [qrGenerationsPages, setQrGenerationsPages] = useState(1);
   const [qrGenerationsLoading, setQrGenerationsLoading] = useState(true);
+  const [deletingQrId, setDeletingQrId] = useState(null);
 
   const loadStats = async () => {
     try {
@@ -82,10 +83,12 @@ const AdminDashboard = ({ user }) => {
     try {
       setQrGenerationsLoading(true);
       const data = await adminAPI.getQRGenerations(page, 20);
+      console.log('QR Generations loaded:', data.qr_generations?.length, 'items');
       setQrGenerations(data.qr_generations);
       setQrGenerationsPage(data.pagination.page);
       setQrGenerationsPages(data.pagination.pages);
     } catch (error) {
+      console.error('QR Generations loading error:', error);
       toast.error(handleAPIError(error));
     } finally {
       setQrGenerationsLoading(false);
@@ -352,6 +355,20 @@ const AdminDashboard = ({ user }) => {
       toast.error(handleAPIError(error));
     } finally {
       setDeletingUserId(null);
+    }
+  };
+
+  const handleDeleteQRGeneration = async (qrGen) => {
+    if (!window.confirm(`Delete QR generation for ${qrGen.user.email}?\nThis will remove the QR code token but won't affect the user account.`)) return;
+    setDeletingQrId(qrGen.id);
+    try {
+      await adminAPI.deleteQRGeneration(qrGen.id);
+      await loadQRGenerations(qrGenerationsPage);
+      toast.success('QR generation deleted');
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setDeletingQrId(null);
     }
   };
 
@@ -800,8 +817,30 @@ const AdminDashboard = ({ user }) => {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">{qrGen.total_referrals}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{formatCurrency(qrGen.earnings)}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {qrGen.used_at ? `Used ${formatDateTime(qrGen.used_at)}` : 'Not used'}
+                        <td className="px-6 py-4 text-sm text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            <span className="text-gray-500 text-xs">
+                              {qrGen.used_at ? `Used ${formatDateTime(qrGen.used_at)}` : 'Not used'}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteQRGeneration(qrGen)}
+                              disabled={deletingQrId === qrGen.id}
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                              title="Delete QR generation"
+                            >
+                              {deletingQrId === qrGen.id ? (
+                                <>
+                                  <LoadingSpinner size="sm" className="mr-1" />
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash className="h-3 w-3 mr-1" />
+                                  Delete
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -816,6 +855,9 @@ const AdminDashboard = ({ user }) => {
                   </h3>
                   <p className="text-gray-600">
                     Generate your first QR code using the form above.
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Debug: QR generations array length = {qrGenerations.length}
                   </p>
                 </div>
               )}
