@@ -2194,12 +2194,26 @@ def admin_qr_generations(user):
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 20))
         
-        # Query OnboardingToken with joined user and admin data
-        AdminUser = db.aliased(User)
-        query = db.session.query(OnboardingToken, User, AdminUser)\
-            .join(User, OnboardingToken.user_id == User.id)\
-            .outerjoin(AdminUser, OnboardingToken.generated_by_admin_id == AdminUser.id)\
-            .order_by(OnboardingToken.created_at.desc())
+        # Check if generated_by_admin_id column exists
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        columns = inspector.get_columns('onboarding_token')
+        column_names = [col['name'] for col in columns]
+        has_admin_column = 'generated_by_admin_id' in column_names
+        
+        if has_admin_column:
+            # Query with admin data if column exists
+            AdminUser = db.aliased(User)
+            query = db.session.query(OnboardingToken, User, AdminUser)\
+                .join(User, OnboardingToken.user_id == User.id)\
+                .outerjoin(AdminUser, OnboardingToken.generated_by_admin_id == AdminUser.id)\
+                .order_by(OnboardingToken.created_at.desc())
+        else:
+            # Query without admin data if column doesn't exist
+            logger.warning("[QR Generations] generated_by_admin_id column not found, using legacy mode")
+            query = db.session.query(OnboardingToken, User)\
+                .join(User, OnboardingToken.user_id == User.id)\
+                .order_by(OnboardingToken.created_at.desc())
         
         # Get paginated results
         total = query.count()
@@ -2210,7 +2224,15 @@ def admin_qr_generations(user):
         et = pytz.timezone('US/Eastern')
         
         results = []
-        for token, patient, admin in tokens:
+        for token_data in tokens:
+            if has_admin_column:
+                # Unpack with admin data
+                token, patient, admin = token_data
+            else:
+                # Unpack without admin data
+                token, patient = token_data
+                admin = None
+            
             # Get patient's referral stats
             referral_count = Referral.query.filter_by(referrer_id=patient.id).count()
             completed_referrals = Referral.query.filter_by(referrer_id=patient.id, status='completed').count()
@@ -2262,8 +2284,8 @@ def admin_qr_generations(user):
         })
         
     except Exception as e:
-        logger.error(f"/admin/qr-generations failed: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"/admin/qr-generations failed: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to load QR generations: {str(e)}'}), 500
 
 @app.route('/r/welcome', methods=['GET'])
 def referral_welcome():
