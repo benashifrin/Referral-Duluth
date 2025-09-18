@@ -2289,6 +2289,37 @@ def admin_qr_generations(user):
         logger.error(f"/admin/qr-generations failed: {e}", exc_info=True)
         return jsonify({'error': f'Failed to load QR generations: {str(e)}'}), 500
 
+@app.route('/admin/qr-generation/<token_id>', methods=['DELETE'])
+@require_admin()
+def admin_delete_qr_generation(user, token_id):
+    """Delete a specific QR generation (OnboardingToken)"""
+    try:
+        # Find the token by JTI
+        token = OnboardingToken.query.filter_by(jti=token_id).first()
+        if not token:
+            return jsonify({'error': 'QR generation not found'}), 404
+        
+        # Get patient info for logging
+        patient = User.query.get(token.user_id)
+        patient_email = patient.email if patient else 'Unknown'
+        
+        # Delete the token
+        db.session.delete(token)
+        db.session.commit()
+        
+        logger.info(f"[QR] Admin {user.email} deleted QR generation {token_id} for patient {patient_email}")
+        
+        return jsonify({
+            'message': 'QR generation deleted successfully',
+            'deleted_token_id': token_id,
+            'patient_email': patient_email
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"/admin/qr-generation/{token_id} delete failed: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to delete QR generation: {str(e)}'}), 500
+
 @app.route('/r/welcome', methods=['GET'])
 def referral_welcome():
     """Validate token and show mobile-optimized landing page; mark token used; clear iPad QR."""
