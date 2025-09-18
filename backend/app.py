@@ -346,6 +346,13 @@ with app.app_context():
                     logger.warning(f'Could not add referral.origin: {e}')
     except Exception as e:
         logger.warning(f'DB auto-migration check failed: {e}')
+    
+    # Auto-migrate generated_by_admin_id column if needed
+    try:
+        from auto_migrate import ensure_generated_by_admin_id_column
+        ensure_generated_by_admin_id_column(db)
+    except Exception as e:
+        logger.warning(f'Auto-migration for generated_by_admin_id failed: {e}')
 
 # SSE subscribers for immediate QR notifications
 sse_clients = []  # list[Queue]
@@ -2088,13 +2095,23 @@ def admin_generate_qr(user):
             logger.info(f"[QR] Successfully created token with admin tracking: {token.jti}")
         except Exception as e:
             logger.error(f"[QR] Error creating token with admin tracking: {e}")
-            if "generated_by_admin_id" in str(e) or "UndefinedColumn" in str(e) or "does not exist" in str(e):
+            error_msg = str(e).lower()
+            if any(keyword in error_msg for keyword in ["generated_by_admin_id", "undefinedcolumn", "does not exist", "unknown column"]):
                 # Rollback the failed transaction
                 db.session.rollback()
                 # Fallback: create token without admin tracking (for backwards compatibility)
                 logger.warning(f"[QR] Column generated_by_admin_id not found, creating token without admin tracking")
                 try:
-                    token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
+                    # Create token instance manually without the admin_id field
+                    token = OnboardingToken.__new__(OnboardingToken)  # Create without calling __init__
+                    token.jti = uuid.uuid4().hex
+                    token.user_id = target.id
+                    token.email_used = chosen_email
+                    token.expires_at = datetime.utcnow() + timedelta(seconds=120)
+                    token.used_at = None
+                    token.created_at = datetime.utcnow()
+                    # Don't set generated_by_admin_id at all
+                    
                     db.session.add(token)
                     db.session.commit()
                     logger.info(f"[QR] Successfully created token without admin tracking: {token.jti}")
