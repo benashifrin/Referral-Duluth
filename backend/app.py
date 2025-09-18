@@ -2079,9 +2079,22 @@ def admin_generate_qr(user):
         first_name = extract_first_name(welcome_name)
 
         # Create token (<= 2 minutes)
-        token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120, generated_by_admin_id=user.id)
-        db.session.add(token)
-        db.session.commit()
+        try:
+            # Try to create token with admin tracking
+            token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120, generated_by_admin_id=user.id)
+            db.session.add(token)
+            db.session.commit()
+        except Exception as e:
+            if "generated_by_admin_id" in str(e) or "UndefinedColumn" in str(e):
+                # Rollback the failed transaction
+                db.session.rollback()
+                # Fallback: create token without admin tracking (for backwards compatibility)
+                logger.warning(f"[QR] Column generated_by_admin_id not found, creating token without admin tracking: {e}")
+                token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
+                db.session.add(token)
+                db.session.commit()
+            else:
+                raise e
         logger.info(f"[QR] token created jti={token.jti} user_id={target.id} expires_at={token.expires_at.isoformat()}")
 
         # Build public URL for token
@@ -2198,8 +2211,8 @@ def admin_qr_generations(user):
                 },
                 'created_at': created_et.strftime('%Y-%m-%d %I:%M %p'),
                 'generated_by_admin': {
-                    'name': admin.name if admin else 'Unknown',
-                    'email': admin.email if admin else 'Unknown'
+                    'name': admin.name if admin else 'Legacy/Unknown',
+                    'email': admin.email if admin else 'Legacy/Unknown'
                 },
                 'assigned_staff': patient.signed_up_by_staff or 'None',
                 'signed_up': has_signed_up,
