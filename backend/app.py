@@ -2081,19 +2081,30 @@ def admin_generate_qr(user):
         # Create token (<= 2 minutes)
         try:
             # Try to create token with admin tracking
+            logger.info(f"[QR] Creating token for user_id={target.id}, email={chosen_email}, admin_id={user.id}")
             token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120, generated_by_admin_id=user.id)
             db.session.add(token)
             db.session.commit()
+            logger.info(f"[QR] Successfully created token with admin tracking: {token.jti}")
         except Exception as e:
-            if "generated_by_admin_id" in str(e) or "UndefinedColumn" in str(e):
+            logger.error(f"[QR] Error creating token with admin tracking: {e}")
+            if "generated_by_admin_id" in str(e) or "UndefinedColumn" in str(e) or "does not exist" in str(e):
                 # Rollback the failed transaction
                 db.session.rollback()
                 # Fallback: create token without admin tracking (for backwards compatibility)
-                logger.warning(f"[QR] Column generated_by_admin_id not found, creating token without admin tracking: {e}")
-                token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
-                db.session.add(token)
-                db.session.commit()
+                logger.warning(f"[QR] Column generated_by_admin_id not found, creating token without admin tracking")
+                try:
+                    token = OnboardingToken(user_id=target.id, email_used=chosen_email, ttl_seconds=120)
+                    db.session.add(token)
+                    db.session.commit()
+                    logger.info(f"[QR] Successfully created token without admin tracking: {token.jti}")
+                except Exception as e2:
+                    logger.error(f"[QR] Failed to create token even without admin tracking: {e2}")
+                    db.session.rollback()
+                    raise e2
             else:
+                db.session.rollback()
+                logger.error(f"[QR] Unexpected error in token creation: {e}")
                 raise e
         logger.info(f"[QR] token created jti={token.jti} user_id={target.id} expires_at={token.expires_at.isoformat()}")
 
@@ -2144,8 +2155,8 @@ def admin_generate_qr(user):
         return jsonify({'message': 'QR generated', 'qr_url': data_uri, 'expires_at': expires_at, 'landing_url': url, 'user': target.to_dict()})
     except Exception as e:
         db.session.rollback()
-        logger.error(f"/admin/generate_qr error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        logger.error(f"/admin/generate_qr error: {e}", exc_info=True)
+        return jsonify({'error': f'QR generation failed: {str(e)}'}), 500
 
 @app.route('/admin/clear_qr', methods=['POST'])
 @require_admin()
