@@ -215,7 +215,7 @@ class EmailService:
                   </p>
                   
                   <div style="background: #f8f9fa; border-radius: 10px; padding: 30px; margin: 30px 0; text-align: left;">
-                    <h3 style="color: #333; margin-top: 0;">HOW TO SIGN UP:</h3>
+                    <h3 style="color: #333; margin-top: 0;">HOW TO VIEW YOUR REWARDS:</h3>
                     <ol style="color: #666; font-size: 16px; line-height: 1.8;">
                       <li>Click the link below to access the signup page</li>
                       <li>Enter your email address</li>
@@ -226,7 +226,7 @@ class EmailService:
                   
                   <div style="margin: 40px 0;">
                     <a href="{login_url}" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 18px; display: inline-block;">
-                      🚀 CLICK HERE TO SIGN UP
+                      Click here to view your dashboard
                     </a>
                   </div>
                   
@@ -271,7 +271,7 @@ class EmailService:
             
             ''' if referral_link else ''}Thank you for your interest in joining our referral program. Getting started is easy!
 
-            HOW TO SIGN UP:
+            HOW TO VIEW YOUR REWARDS:
             1. Click the link below to access the signup page
             2. Enter your email address
             3. Enter your verification code when prompted
