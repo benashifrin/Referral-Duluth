@@ -48,6 +48,7 @@ export default function VideoStrip() {
         },
         events: {
           onReady: (event) => {
+            console.log('🎥 YouTube player ready');
             try {
               // Ensure muted to satisfy autoplay policies and always start silent
               event.target.mute();
@@ -55,15 +56,18 @@ export default function VideoStrip() {
               // Kick playback explicitly in case browser blocks implicit autoplay
               event.target.playVideo();
             } catch (e) {
-              // no-op
+              console.error('Error in onReady:', e);
             }
             setPlayer(event.target);
             setIsPlayerReady(true);
           },
           onStateChange: (event) => {
+            console.log('🎬 Player state changed:', event.data);
             if (event.data === window.YT.PlayerState.ENDED) {
+              console.log('🔄 Video ended, advancing to next video...');
               const next = (currentIndexRef.current + 1) % VIDEOS.length;
-              changeVideo(next);
+              console.log(`📽️ Current: ${currentIndexRef.current}, Next: ${next}`);
+              setTimeout(() => changeVideo(next), 100); // Small delay to ensure state is ready
             }
           }
         }
@@ -71,32 +75,43 @@ export default function VideoStrip() {
       
       setPlayer(newPlayer);
     }
-  }, [currentVideoIndex]);
+  }, []);
 
-  const changeVideo = (index) => {
+  const changeVideo = useCallback((index) => {
+    console.log(`🎯 changeVideo called with index: ${index}`);
+    console.log(`📺 Player available:`, !!player);
+    console.log(`🔧 Player loadVideoById available:`, !!(player && player.loadVideoById));
+    
     if (player && player.loadVideoById) {
       const videoId = extractYouTubeId(VIDEOS[index].link);
+      console.log(`🆔 Loading video ID: ${videoId} (${VIDEOS[index].title})`);
+      
       try {
         player.mute();
         player.setVolume(0);
+        player.loadVideoById(videoId);
+        console.log(`✅ Video loaded successfully`);
       } catch (e) {
-        // no-op
+        console.error('❌ Error loading video:', e);
       }
-      player.loadVideoById(videoId);
+    } else {
+      console.warn('⚠️ Player not ready or loadVideoById not available');
     }
+    
     setCurrentVideoIndex(index);
     currentIndexRef.current = index;
-  };
+    console.log(`📊 Updated currentIndexRef to: ${index}`);
+  }, [player]);
 
   // Remove pause/resume functionality - video always plays
 
-  // Initialize player only once
+  // Initialize player only once when component mounts
   useEffect(() => {
-    if (isPlayerReady && player && currentVideoIndex === 0) {
-      // Player is ready and this is the initial load
-      return;
+    if (!player && playerRef.current) {
+      console.log('🚀 Initializing player for the first time');
+      initPlayer();
     }
-  }, [currentVideoIndex, isPlayerReady, player]);
+  }, [initPlayer, player]);
 
   return (
     <>
