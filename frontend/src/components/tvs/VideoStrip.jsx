@@ -7,6 +7,8 @@ export default function VideoStrip() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const currentIndexRef = useRef(0);
+  const changeVideoRef = useRef(null);
+  const progressCheckInterval = useRef(null);
 
   // Initialize YouTube player with faster loading
   useEffect(() => {
@@ -60,14 +62,63 @@ export default function VideoStrip() {
             }
             setPlayer(event.target);
             setIsPlayerReady(true);
+            
+            // Start progress monitoring as fallback
+            if (progressCheckInterval.current) {
+              clearInterval(progressCheckInterval.current);
+            }
+            
+            progressCheckInterval.current = setInterval(() => {
+              try {
+                if (event.target && event.target.getCurrentTime && event.target.getDuration) {
+                  const currentTime = event.target.getCurrentTime();
+                  const duration = event.target.getDuration();
+                  const state = event.target.getPlayerState();
+                  
+                  // Check if video is near the end (within 1 second) and not already ended
+                  if (duration > 0 && currentTime > 0 && (duration - currentTime) < 1 && state !== window.YT.PlayerState.ENDED) {
+                    console.log('🎬 Fallback: Video near end detected via progress monitoring');
+                    console.log(`⏰ Current time: ${currentTime}, Duration: ${duration}, State: ${state}`);
+                    
+                    const currentIndex = currentIndexRef.current;
+                    const next = (currentIndex + 1) % VIDEOS.length;
+                    console.log(`📽️ Fallback advancing: Current ${currentIndex} -> Next ${next}`);
+                    
+                    if (changeVideoRef.current) {
+                      changeVideoRef.current(next);
+                    }
+                  }
+                }
+              } catch (e) {
+                // Silently ignore errors in progress monitoring
+              }
+            }, 1000); // Check every second
           },
           onStateChange: (event) => {
             console.log('🎬 Player state changed:', event.data);
+            console.log('🎬 Available states:', {
+              ENDED: window.YT?.PlayerState?.ENDED,
+              PLAYING: window.YT?.PlayerState?.PLAYING,
+              PAUSED: window.YT?.PlayerState?.PAUSED,
+              BUFFERING: window.YT?.PlayerState?.BUFFERING,
+              CUED: window.YT?.PlayerState?.CUED
+            });
+            
             if (event.data === window.YT.PlayerState.ENDED) {
               console.log('🔄 Video ended, advancing to next video...');
-              const next = (currentIndexRef.current + 1) % VIDEOS.length;
-              console.log(`📽️ Current: ${currentIndexRef.current}, Next: ${next}`);
-              setTimeout(() => changeVideo(next), 100); // Small delay to ensure state is ready
+              const currentIndex = currentIndexRef.current;
+              const next = (currentIndex + 1) % VIDEOS.length;
+              console.log(`📽️ Current: ${currentIndex}, Next: ${next}, Total videos: ${VIDEOS.length}`);
+              
+              // Use a more reliable delay and ensure the function exists
+              setTimeout(() => {
+                console.log('⏰ Timeout fired, calling changeVideo...');
+                if (changeVideoRef.current && typeof changeVideoRef.current === 'function') {
+                  changeVideoRef.current(next);
+                } else {
+                  console.error('❌ changeVideoRef.current is not available!', changeVideoRef.current);
+                }
+              }, 500); // Longer delay to ensure everything is ready
             }
           }
         }
@@ -103,6 +154,11 @@ export default function VideoStrip() {
     console.log(`📊 Updated currentIndexRef to: ${index}`);
   }, [player]);
 
+  // Keep the ref updated with the latest function
+  useEffect(() => {
+    changeVideoRef.current = changeVideo;
+  }, [changeVideo]);
+
   // Remove pause/resume functionality - video always plays
 
   // Initialize player only once when component mounts
@@ -112,6 +168,15 @@ export default function VideoStrip() {
       initPlayer();
     }
   }, [initPlayer, player]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressCheckInterval.current) {
+        clearInterval(progressCheckInterval.current);
+      }
+    };
+  }, []);
 
   return (
     <>
