@@ -2701,6 +2701,57 @@ def export_referrals(user):
         print(f"Error exporting referrals: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/admin/export/patients', methods=['GET'])
+@require_admin()
+def export_patients(user):
+    """Export all patients to CSV"""
+    try:
+        from io import StringIO
+        import csv
+        
+        # Get all patients (users)
+        patients = User.query.all()
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'ID', 'Email', 'Name', 'Phone', 'Referral Code', 
+            'Signed Up By Staff', 'Is Admin', 'Created At',
+            'Total Referrals Made', 'Completed Referrals', 'Annual Earnings'
+        ])
+        
+        # Write data
+        for patient in patients:
+            stats = patient.get_referral_stats()
+            writer.writerow([
+                patient.id,
+                patient.email,
+                patient.name or '',
+                patient.phone or '',
+                patient.referral_code,
+                patient.signed_up_by_staff or '',
+                'Yes' if patient.is_admin else 'No',
+                patient.created_at.isoformat(),
+                stats['total_referrals'],
+                stats['completed_referrals'],
+                f"${stats['annual_earnings']:.2f}"
+            ])
+        
+        output.seek(0)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=patients_export.csv'}
+        )
+        
+    except Exception as e:
+        print(f"Error exporting patients: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/admin/upload_patients', methods=['POST'])
 @require_admin()
 def admin_upload_patients(user):

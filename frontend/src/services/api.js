@@ -208,6 +208,13 @@ export const adminAPI = {
     return response.data;
   },
 
+  exportPatients: async () => {
+    const response = await api.get('/admin/export/patients', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   // Patients search (by email/name)
   searchPatients: async (q) => {
     const params = new URLSearchParams({ q });

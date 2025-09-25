@@ -151,6 +151,27 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
+  const [exportingPatients, setExportingPatients] = useState(false);
+  const handleExportPatients = async () => {
+    setExportingPatients(true);
+    try {
+      const blob = await adminAPI.exportPatients();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `patients_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Patients exported successfully!');
+    } catch (error) {
+      toast.error(handleAPIError(error));
+    } finally {
+      setExportingPatients(false);
+    }
+  };
+
   const handleStatusFilterChange = async (newStatus) => {
     setStatusFilter(newStatus);
     setCurrentPage(1);
@@ -393,6 +414,23 @@ const AdminDashboard = ({ user }) => {
             <p className="text-gray-600 mt-1">Manage referrals and track program performance</p>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={handleExportPatients}
+              disabled={exportingPatients}
+              className="btn-secondary"
+            >
+              {exportingPatients ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Patients
+                </>
+              )}
+            </button>
             <button
               onClick={handleExport}
               disabled={exporting}
